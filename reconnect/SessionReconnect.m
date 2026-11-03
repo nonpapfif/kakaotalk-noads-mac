@@ -11,7 +11,7 @@
 - (void)updateTrackingAreas {
     if (self.hoverArea) [self removeTrackingArea:self.hoverArea];
     self.hoverArea = [[NSTrackingArea alloc] initWithRect:NSZeroRect
-        options:NSTrackingMouseEnteredAndExited | NSTrackingActiveInActiveApp |
+        options:NSTrackingMouseEnteredAndExited | NSTrackingActiveAlways |
                 NSTrackingInVisibleRect owner:self userInfo:nil];
     [self addTrackingArea:self.hoverArea];
     [super updateTrackingAreas];

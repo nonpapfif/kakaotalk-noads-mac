@@ -57,3 +57,15 @@ backup/idempotence/incorrect-payload safeguards.
 The modified installed app was correctly rejected as a source for repatching.
 No newer official app was patched or functionally validated. This is maintenance
 infrastructure, not a declaration of support for a future release or an in-app updater.
+
+
+## Inactive-window hover fix: 26.9.0-reconnect.2
+
+The owner reported that the reconnect button did not show its hover background while
+KakaoTalk was inactive. The tracking area incorrectly used `NSTrackingActiveInActiveApp`.
+It now uses `NSTrackingActiveAlways`; drawing still uses the existing inactive-hover colors.
+The helper compiled for both architectures and the installed main app passed signature checks.
+The owner confirmed that hovering the reconnect icon now shows its background while the
+KakaoTalk window is behind another app. Reconnect behavior and data identity were unchanged.
+The updated installer also includes the version-profile-aware payload metadata introduced
+by the maintenance tooling. Older release assets remain unchanged.
