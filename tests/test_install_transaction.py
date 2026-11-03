@@ -3,6 +3,7 @@ import hashlib
 import os
 from pathlib import Path
 import plistlib
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -48,6 +49,28 @@ class InstallTransactionTests(unittest.TestCase):
         result = self.run_install()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(len(list((self.parent / 'KakaoTalk Backups').glob('*.app'))), 1)
+
+    def test_same_version_older_patch_updates_and_preserves_data(self):
+        shutil.rmtree(self.target)
+        shutil.copytree(self.source, self.target, symlinks=True)
+        old_helper = self.target / 'Contents/Frameworks/SessionReconnect.dylib'
+        subprocess.run(['codesign', '--force', '--sign', '-', '--identifier',
+                        'local.test.previous-patch', str(old_helper)],
+                       check=True, capture_output=True)
+        subprocess.run(['codesign', '--force', '--deep', '--sign', '-', str(self.target)],
+                       check=True, capture_output=True)
+        subprocess.run(['codesign', '--verify', '--deep', '--strict', str(self.target)],
+                       check=True, capture_output=True)
+        old_hash = hashlib.sha256(old_helper.read_bytes()).hexdigest()
+        self.assertNotEqual(old_hash, self.helper)
+        result = self.run_install()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        backups = list((self.parent / 'KakaoTalk Backups').glob('*.app'))
+        self.assertEqual(len(backups), 1)
+        relative = 'Contents/Frameworks/SessionReconnect.dylib'
+        self.assertEqual(hashlib.sha256((backups[0] / relative).read_bytes()).hexdigest(), old_hash)
+        self.assertEqual(hashlib.sha256((self.target / relative).read_bytes()).hexdigest(), self.helper)
+        self.assertEqual(self.chat_data.read_text(), 'do not touch')
 
     def test_wrong_payload_hash_does_not_replace_app(self):
         result = self.run_install(executable='0' * 64)

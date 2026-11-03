@@ -90,3 +90,21 @@ buttons exist under the same parent. Otherwise it removes the custom button and 
 overlay instead of attaching them directly to the window content. The owner confirmed the
 installed fix. Friend-list duplication remains under investigation; temporary diagnostics
 are not included in repository source.
+
+## Installer refresh: 26.9.0-reconnect.3
+
+The release payload is rebuilt from the current native helper source, without temporary
+friend-list diagnostics. The app retains the existing reconnect bundle identity.
+The installer detects an existing reconnect app and labels the action Update KakaoTalk.
+Replacement still depends on executable/helper hashes, including at the same app version.
+
+Twelve automated checks passed against the signed release payload. The added upgrade check
+uses a separately signed, different helper at the same application version and verifies
+replacement, the previous helper in the app backup, and a preserved separate data sentinel.
+This is a disposable transaction test, not a clean second-Mac GUI upgrade validation.
+
+The installer GUI was opened on the owner's Mac. It displayed Update KakaoTalk and
+explained reuse of existing reconnect login/chat data. Installation was not run through
+this refreshed GUI. Both payload archives matched the release executable/helper hashes.
+The standalone archive was extracted and its app signature verified; the installer
+signature and DMG checksum also passed verification.

@@ -8,16 +8,17 @@ simultaneous desktop sessions.
 
 Download **one file**:
 
-[Download the self-contained installer DMG](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/download/v26.9.0-reconnect.2/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.dmg)
+[Download the self-contained installer DMG](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/download/v26.9.0-reconnect.3/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.dmg)
 
 1. Open the DMG and double-click **Install KakaoTalk**.
-2. Finish drafts, then click **Install and Replace KakaoTalk**.
+2. Finish drafts, then click **Update KakaoTalk** for an existing reconnect build,
+   or **Install and Replace KakaoTalk** for a first installation.
 3. Approve administrator or default-link prompts if macOS asks.
 4. The installer opens `/Applications/KakaoTalk.app`. Sign in directly with
    **Keep me logged in** enabled if needed.
 
 No Python, Xcode, Terminal commands, separate app ZIP, or additional network download is
-required on the destination Mac. A [ZIP of the same installer](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/download/v26.9.0-reconnect.2/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.zip)
+required on the destination Mac. A [ZIP of the same installer](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/download/v26.9.0-reconnect.3/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.zip)
 is also available. Extract it before opening the installer.
 
 **First-launch approval:** these builds are ad-hoc signed, not Kakao-signed or
@@ -27,7 +28,7 @@ KakaoTalk itself. The installer does not disable Gatekeeper or remove quarantine
 An organization-managed Mac may enforce additional restrictions.
 
 Checksums and the standalone app ZIP are on the
-[release page](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/tag/v26.9.0-reconnect.2).
+[release page](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/tag/v26.9.0-reconnect.3).
 
 ## What the installer does
 
@@ -45,8 +46,17 @@ Checksums and the standalone app ZIP are on the
 
 If link approval is declined, the app remains installed and the installer reports which
 links were not configured. It does not silently claim full success.
-The bundled app is fixed at 26.9.0/build 2006; installing it can replace a newer client.
+The bundled app is fixed at 26.9.0/build 2006; the GUI refuses a newer installed version.
 The installer refuses an unexpected application identity at the destination.
+
+## Updating an existing patched app
+
+Run the new installer over the existing reconnect app. It detects the same application
+identity and offers **Update KakaoTalk**. No uninstall or data migration is needed.
+Even when the KakaoTalk version/build is unchanged, a different executable or helper hash
+triggers a backed-up replacement. An identical payload is left in place.
+Existing reconnect data and saved login remain in the same container; expired authentication
+can still require manual sign-in. The installer does not launch a background updater.
 
 ## Chat data and login
 

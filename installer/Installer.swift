@@ -72,10 +72,15 @@ final class Installer: NSObject, NSApplicationDelegate {
         title.frame = NSRect(x: 28, y: 285, width: 510, height: 32)
         window.contentView!.addSubview(title)
         let payloadVersion = Bundle.main.object(forInfoDictionaryKey: "KakaoTalkPayloadVersion") as? String ?? "bundled"
+        let updating = Bundle(url: appURL)?.bundleIdentifier == bundleID
+        let operation = updating ? "Update" : "Install"
+        let dataNotice = updating
+            ? "Your existing reconnect login and chat data are reused. The previous app is backed up."
+            : "The existing app is backed up. Chat data is kept. If you are switching from the official " +
+              "app or older NoAds build, its separate chat history is not automatically migrated."
         let detail = NSTextField(wrappingLabelWithString:
-            "Install KakaoTalk \(payloadVersion) with no main-window ads and a sidebar reconnect button.\n\n" +
-            "The existing app is backed up. Chat data is kept. If you are switching from the official " +
-            "app or older NoAds build, its separate chat history is not automatically migrated.\n\n" +
+            "\(operation) KakaoTalk \(payloadVersion) with no main-window ads and a sidebar reconnect button.\n\n" +
+            dataNotice + "\n\n" +
             "Finish drafts before continuing. KakaoTalk will close during installation. " +
             "Your Mac may ask for administrator or default-link approval.")
         detail.frame = NSRect(x: 28, y: 110, width: 504, height: 165)
@@ -88,7 +93,8 @@ final class Installer: NSObject, NSApplicationDelegate {
         progress.style = .spinning
         progress.isDisplayedWhenStopped = false
         window.contentView!.addSubview(progress)
-        button = NSButton(title: "Install and Replace KakaoTalk", target: self, action: #selector(start))
+        button = NSButton(title: updating ? "Update KakaoTalk" : "Install and Replace KakaoTalk",
+                          target: self, action: #selector(start))
         button.bezelStyle = .rounded
         button.frame = NSRect(x: 255, y: 18, width: 280, height: 34)
         window.contentView!.addSubview(button)
