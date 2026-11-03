@@ -1,0 +1,7 @@
+*.app/
+*.zip
+*.dmg
+*.entitlements.plist
+*.patch.json
+__pycache__/
+.DS_Store
