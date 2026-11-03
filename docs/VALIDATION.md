@@ -82,3 +82,11 @@ optical adjustment, and matching popup tone. The overlay uses a custom transluce
 with sRGB (81, 81, 81), alpha 224/255, sampled from the original mute popup image.
 The helper compiled for both architectures, and the installed app passed code-signature
 verification. These source changes are newer than the published reconnect.2 assets.
+
+## Hide reconnect controls on the login screen
+
+The helper now attaches the sidebar button only when the native Notifications and Settings
+buttons exist under the same parent. Otherwise it removes the custom button and feedback
+overlay instead of attaching them directly to the window content. The owner confirmed the
+installed fix. Friend-list duplication remains under investigation; temporary diagnostics
+are not included in repository source.

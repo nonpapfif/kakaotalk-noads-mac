@@ -302,7 +302,13 @@ static BOOL InstallLoginHook(void) {
     if (!content) return;
     NSButton *bell = FindNativeSidebarButton(content, @"Notifications");
     NSButton *settings = FindNativeSidebarButton(content, @"Settings");
-    NSView *parent = bell.superview ?: content;
+    if (!bell || !settings || bell.superview != settings.superview) {
+        [self.sidebarButton removeFromSuperview];
+        self.sidebarButton = nil;
+        [self.feedback removeFromSuperview];
+        return;
+    }
+    NSView *parent = bell.superview;
     if (self.sidebarButton.superview != parent) {
         [self.sidebarButton removeFromSuperview];
         self.sidebarButton = [[SessionSidebarButton alloc] initWithFrame:NSZeroRect];
