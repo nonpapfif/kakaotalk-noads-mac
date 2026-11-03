@@ -4,14 +4,16 @@ source_app=$1
 target=$2
 expected_executable=$3
 expected_helper=$4
+expected_version=${5:?Expected payload version}
+expected_build=${6:?Expected payload build}
 parent=$(/usr/bin/dirname "$target")
 [ "$(/usr/bin/basename "$target")" = 'KakaoTalk.app' ] || exit 2
 [ -d "$parent" ] && [ ! -L "$target" ] || exit 2
 expected_id=local.elsholtzia.KakaoTalkReconnectExperiment
 plist="$source_app/Contents/Info.plist"
 [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" = "$expected_id" ] || exit 2
-[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")" = '26.9.0' ] || exit 2
-[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")" = '2006' ] || exit 2
+[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")" = "$expected_version" ] || exit 2
+[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")" = "$expected_build" ] || exit 2
 verify_app() {
     /usr/bin/codesign --verify --deep --strict "$1" || return 1
     actual=$(/usr/bin/shasum -a 256 "$1/Contents/MacOS/KakaoTalk") || return 1

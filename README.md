@@ -126,3 +126,12 @@ been revalidated for this release.
 Quit the current KakaoTalk. Move `/Applications/KakaoTalk.app` aside, then copy the desired
 backup from `/Applications/KakaoTalk Backups/` to `/Applications/KakaoTalk.app`.
 Keep all Library data. Update the Dock and default URL handlers to the restored identity.
+
+## Updating to future KakaoTalk versions
+
+See [UPDATES.md](UPDATES.md) for the version-profile maintenance workflow and acceptance
+checklist. Only the reviewed 26.9.0/build 2006 source is currently approved. Future versions
+must get their own reviewed profile and functional validation before release.
+The tools refuse unknown versions and hashes. The next installer can use its own payload
+version, keep the same data identity, and refuse downgrades. This does not add an automatic
+in-app updater or guarantee compatibility with an untested official release.

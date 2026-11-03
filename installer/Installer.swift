@@ -71,8 +71,9 @@ final class Installer: NSObject, NSApplicationDelegate {
         title.font = .boldSystemFont(ofSize: 23)
         title.frame = NSRect(x: 28, y: 285, width: 510, height: 32)
         window.contentView!.addSubview(title)
+        let payloadVersion = Bundle.main.object(forInfoDictionaryKey: "KakaoTalkPayloadVersion") as? String ?? "bundled"
         let detail = NSTextField(wrappingLabelWithString:
-            "Install KakaoTalk 26.9.0 with no main-window ads and a sidebar reconnect button.\n\n" +
+            "Install KakaoTalk \(payloadVersion) with no main-window ads and a sidebar reconnect button.\n\n" +
             "The existing app is backed up. Chat data is kept. If you are switching from the official " +
             "app or older NoAds build, its separate chat history is not automatically migrated.\n\n" +
             "Finish drafts before continuing. KakaoTalk will close during installation. " +
@@ -135,7 +136,8 @@ final class Installer: NSObject, NSApplicationDelegate {
         guard let payload = try JSONSerialization.jsonObject(with: data) as? [String: String],
               let archiveHash = payload["archive_sha256"],
               let executableHash = payload["executable_sha256"],
-              let helperHash = payload["helper_sha256"] else {
+              let helperHash = payload["helper_sha256"],
+              let version = payload["version"], let build = payload["build"] else {
             throw InstallError(message: "The payload manifest is invalid.")
         }
         _ = try checked("/usr/bin/codesign", ["--verify", "--deep", "--strict", Bundle.main.bundlePath])
@@ -145,12 +147,24 @@ final class Installer: NSObject, NSApplicationDelegate {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
         _ = try checked("/usr/bin/ditto", ["-x", "-k", archive.path, directory.path])
         let source = directory.appendingPathComponent("KakaoTalk.app")
-        guard Bundle(url: source)?.bundleIdentifier == bundleID,
+        let sourceBundle = Bundle(url: source)
+        guard sourceBundle?.bundleIdentifier == bundleID,
+              sourceBundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String == version,
+              sourceBundle?.object(forInfoDictionaryKey: "CFBundleVersion") as? String == build,
               try sha256(source.appendingPathComponent("Contents/MacOS/KakaoTalk")) == executableHash,
               try sha256(source.appendingPathComponent("Contents/Frameworks/SessionReconnect.dylib")) == helperHash else {
             throw InstallError(message: "The bundled app does not match this installer.")
         }
         _ = try checked("/usr/bin/codesign", ["--verify", "--deep", "--strict", source.path])
+        if let existing = Bundle(url: appURL),
+           let installedVersion = existing.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
+           let installedBuild = existing.object(forInfoDictionaryKey: "CFBundleVersion") as? String {
+            let order = installedVersion.compare(version, options: .numeric)
+            if order == .orderedDescending ||
+               (order == .orderedSame && installedBuild.compare(build, options: .numeric) == .orderedDescending) {
+                throw InstallError(message: "A newer KakaoTalk version is already installed. Use a compatible newer installer; no app was replaced.")
+            }
+        }
         report["payload"] = payload
         report["temporary_payload_directory"] = directory.path
         return source
@@ -173,7 +187,8 @@ final class Installer: NSObject, NSApplicationDelegate {
         let resources = try resources()
         let manifest = report["payload"] as! [String: String]
         let arguments = [resources.appendingPathComponent("install-app.sh").path, source.path,
-                         appURL.path, manifest["executable_sha256"]!, manifest["helper_sha256"]!]
+                         appURL.path, manifest["executable_sha256"]!, manifest["helper_sha256"]!,
+                         manifest["version"]!, manifest["build"]!]
         var result = try run("/bin/sh", arguments)
         if result.status == 77 {
             update("Administrator approval is required. Enter your Mac password only in the system prompt.")

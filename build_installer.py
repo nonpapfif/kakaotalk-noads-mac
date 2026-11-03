@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import tempfile
 
-BUNDLE_ID = 'local.elsholtzia.KakaoTalkReconnectExperiment'
+from compatibility import BUNDLE_ID, load_profile
 
 
 def digest(path: Path) -> str:
@@ -28,10 +28,10 @@ def build(app: Path, output: Path) -> None:
     if output.exists():
         raise FileExistsError(output)
     info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
-    if (info['CFBundleIdentifier'], info['CFBundleShortVersionString'], info['CFBundleVersion']) != (
-        BUNDLE_ID, '26.9.0', '2006'
-    ):
-        raise ValueError('Expected the supported reconnect build')
+    version, build_number = info['CFBundleShortVersionString'], info['CFBundleVersion']
+    profile = load_profile(version, build_number)
+    if info['CFBundleIdentifier'] != BUNDLE_ID:
+        raise ValueError('Expected the supported reconnect identity')
     subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True)
     output.mkdir(parents=True)
     installer = output / 'Install KakaoTalk.app'
@@ -43,7 +43,7 @@ def build(app: Path, output: Path) -> None:
     shutil.copy(root / 'installer/install-app.sh', resources / 'install-app.sh')
     archive = resources / 'KakaoTalk.zip'
     subprocess.run(['ditto', '-c', '-k', '--norsrc', '--keepParent', str(app), str(archive)], check=True)
-    manifest = {'archive_sha256': digest(archive),
+    manifest = {'version': version, 'build': build_number, 'archive_sha256': digest(archive),
                 'executable_sha256': digest(app / 'Contents/MacOS/KakaoTalk'),
                 'helper_sha256': digest(app / 'Contents/Frameworks/SessionReconnect.dylib')}
     (resources / 'Payload.json').write_text(json.dumps(manifest, indent=2) + '\n')
@@ -53,8 +53,9 @@ def build(app: Path, output: Path) -> None:
         'CFBundleIdentifier': 'local.elsholtzia.KakaoTalkNoAdsInstaller',
         'CFBundleName': 'Install KakaoTalk', 'CFBundleDisplayName': 'Install KakaoTalk',
         'CFBundleExecutable': 'Installer', 'CFBundlePackageType': 'APPL',
-        'CFBundleShortVersionString': '1.0.0', 'CFBundleVersion': '1',
-        'LSMinimumSystemVersion': '13.0', 'NSHighResolutionCapable': True,
+        'CFBundleShortVersionString': '1.1.0', 'CFBundleVersion': '2',
+        'KakaoTalkPayloadVersion': version,
+        'LSMinimumSystemVersion': profile['minimum_macos'], 'NSHighResolutionCapable': True,
     }
     if icon_path.is_file():
         shutil.copy(icon_path, resources / 'Installer.icns')
@@ -72,10 +73,10 @@ def build(app: Path, output: Path) -> None:
         subprocess.run(['lipo', '-create', *thin, '-output', str(contents / 'MacOS/Installer')], check=True)
     subprocess.run(['codesign', '--force', '--sign', '-', '--options', 'runtime', str(installer)], check=True)
     subprocess.run(['codesign', '--verify', '--deep', '--strict', str(installer)], check=True)
-    zip_path = output / 'KakaoTalk-NoAds-Reconnect-Installer-26.9.0.zip'
+    zip_path = output / f'KakaoTalk-NoAds-Reconnect-Installer-{version}.zip'
     subprocess.run(['ditto', '-c', '-k', '--norsrc', '--keepParent', str(installer), str(zip_path)], check=True)
     zip_path.with_suffix('.sha256').write_text(digest(zip_path) + '  ' + zip_path.name + '\n')
-    dmg = output / 'KakaoTalk-NoAds-Reconnect-Installer-26.9.0.dmg'
+    dmg = output / f'KakaoTalk-NoAds-Reconnect-Installer-{version}.dmg'
     with tempfile.TemporaryDirectory(prefix='kakao-dmg-content-') as temporary:
         staged = Path(temporary) / installer.name
         shutil.copytree(installer, staged, symlinks=True, copy_function=shutil.copy)

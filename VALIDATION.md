@@ -46,3 +46,14 @@ KAKAO_TEST_APP=/Applications/KakaoTalk.app python3 -m unittest discover -s tests
 Do not mistake preserved old data containers for automatic chat-history migration.
 This release intentionally retains the reconnect bundle identity. It supports session
 switching, not simultaneous desktop sessions, and disables automatic recovery.
+
+## Version-profile maintenance tooling
+
+The follow-up maintenance change adds an approved 26.9.0/build 2006 profile, a read-only
+candidate inspector, version-independent installer payload metadata and downgrade refusal.
+Eleven checks passed, including unknown-version/hash rejection, unapproved-profile rejection,
+output-identity preservation, overlapping-patch rejection, path validation and installer
+backup/idempotence/incorrect-payload safeguards.
+The modified installed app was correctly rejected as a source for repatching.
+No newer official app was patched or functionally validated. This is maintenance
+infrastructure, not a declaration of support for a future release or an in-app updater.

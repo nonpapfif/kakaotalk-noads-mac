@@ -1,0 +1,114 @@
+{
+  "version": "26.9.0",
+  "build": "2006",
+  "approved_for_build": true,
+  "source_bundle_id": "com.kakao.KakaoTalkMac",
+  "source_sha256": "456e1a3ed7a87168888bdb8c6e4894764a028e62c0af68562a760d9909d2bb65",
+  "output_bundle_id": "local.elsholtzia.KakaoTalkReconnectExperiment",
+  "architectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "minimum_macos": "13.0",
+  "patches": [
+    {
+      "offset": "0x111388c",
+      "before": "ff5610",
+      "after": "31c090",
+      "purpose": "x86_64 banner eligibility"
+    },
+    {
+      "offset": "0xe2d07c",
+      "before": "e8cf7fe5ff",
+      "after": "31c0909090",
+      "purpose": "x86_64 separator visibility"
+    },
+    {
+      "offset": "0xe2d0dd",
+      "before": "e86e7fe5ff",
+      "after": "31c0909090",
+      "purpose": "x86_64 separator height"
+    },
+    {
+      "offset": "0x378a558",
+      "before": "00013fd6",
+      "after": "00008052",
+      "purpose": "arm64 banner eligibility"
+    },
+    {
+      "offset": "0x350067c",
+      "before": "8d37fa97",
+      "after": "00008052",
+      "purpose": "arm64 separator visibility"
+    },
+    {
+      "offset": "0x35006d8",
+      "before": "7637fa97",
+      "after": "00008052",
+      "purpose": "arm64 separator height"
+    },
+    {
+      "offset": "0x171b20a",
+      "before": "554889e5",
+      "after": "c3909090",
+      "purpose": "x86_64 kickout handler"
+    },
+    {
+      "offset": "0x3ce86d0",
+      "before": "ff4303d1",
+      "after": "c0035fd6",
+      "purpose": "arm64 kickout handler"
+    },
+    {
+      "offset": "0x179d4e4",
+      "before": "554889e50fbe",
+      "after": "b001c3909090",
+      "purpose": "x86_64 disable automatic recovery"
+    },
+    {
+      "offset": "0x3d51bd0",
+      "before": "0840403900010012",
+      "after": "20008052c0035fd6",
+      "purpose": "arm64 disable automatic recovery"
+    }
+  ],
+  "required_selectors": [
+    "core",
+    "auth",
+    "main",
+    "chatWinManager",
+    "autoLoginWithForce:",
+    "canAutoLogin",
+    "doingAutoLogin",
+    "isTryingToLogin",
+    "locoClientDidLogin",
+    "locoClientDidRecover",
+    "recoverLocoLoginDisabled",
+    "chatWindowControllers",
+    "chatThreadWindowControllers",
+    "chattingController",
+    "chatId",
+    "chatRoomWithId:",
+    "updateChatRoom:",
+    "didChangeObjects:",
+    "fetchLatestMessagesWithReadmark:",
+    "reloadAllChatMessage:",
+    "reloadAllChatRoomsSettings",
+    "mainWindowController",
+    "nest",
+    "sharedInstance"
+  ],
+  "validation_scope": [
+    "owner-tested Apple Silicon app",
+    "manual session takeover",
+    "existing-chat send and live content refresh",
+    "main-window ad removal",
+    "sidebar appearance and placement"
+  ],
+  "unverified": [
+    "Intel runtime",
+    "all auxiliary windows and long-term behavior",
+    "complete dark-mode visual QA",
+    "fresh rebuild from original official app for this release"
+  ]
+}

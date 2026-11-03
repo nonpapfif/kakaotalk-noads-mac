@@ -25,15 +25,17 @@ class InstallTransactionTests(unittest.TestCase):
         self.chat_data.parent.mkdir()
         self.chat_data.write_text('do not touch')
         self.source = Path(APP)
+        info = plistlib.loads((self.source / 'Contents/Info.plist').read_bytes())
+        self.version, self.build = info['CFBundleShortVersionString'], info['CFBundleVersion']
         self.exe = hashlib.sha256((self.source / 'Contents/MacOS/KakaoTalk').read_bytes()).hexdigest()
         self.helper = hashlib.sha256((self.source / 'Contents/Frameworks/SessionReconnect.dylib').read_bytes()).hexdigest()
 
     def tearDown(self):
         self.temporary.cleanup()
 
-    def run_install(self, executable=None):
+    def run_install(self, executable=None, version=None):
         return subprocess.run(['/bin/sh', str(SCRIPT), str(self.source), str(self.target),
-                               executable or self.exe, self.helper], capture_output=True, text=True)
+                               executable or self.exe, self.helper, version or self.version, self.build], capture_output=True, text=True)
 
     def test_backup_install_and_idempotence(self):
         result = self.run_install()
@@ -49,6 +51,12 @@ class InstallTransactionTests(unittest.TestCase):
 
     def test_wrong_payload_hash_does_not_replace_app(self):
         result = self.run_install(executable='0' * 64)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual((self.target / 'Contents/preserve.txt').read_text(), 'original app sentinel')
+        self.assertFalse((self.parent / 'KakaoTalk Backups').exists())
+
+    def test_wrong_payload_version_does_not_replace_app(self):
+        result = self.run_install(version='99.0.0')
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual((self.target / 'Contents/preserve.txt').read_text(), 'original app sentinel')
         self.assertFalse((self.parent / 'KakaoTalk Backups').exists())
