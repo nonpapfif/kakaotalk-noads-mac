@@ -1,8 +1,5 @@
 # Installation handoff
 
-The complete, canonical installation and handoff procedure is now in
-[README.md: Install and replace the official app](README.md#install-and-replace-the-official-app).
-
-Use the repository URL as the single entry point. The README includes release downloads,
-checksum and signature verification, official-app replacement, data preservation, Dock setup,
-default URL-handler configuration, rollback, and completion checks.
+Use [README.md](README.md) as the single current installation and verification guide.
+The self-contained installer DMG is the preferred download. The app and its credentials
+are separate: never copy or publish user containers, Keychain entries, sessions, or chat data.

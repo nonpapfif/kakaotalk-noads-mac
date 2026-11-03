@@ -1,0 +1,392 @@
+#import <Cocoa/Cocoa.h>
+#import <objc/message.h>
+#import <objc/runtime.h>
+
+@interface SessionSidebarButton : NSButton
+@property(nonatomic, strong) NSTrackingArea *hoverArea;
+@property(nonatomic) BOOL hovered;
+@end
+
+@implementation SessionSidebarButton
+- (void)updateTrackingAreas {
+    if (self.hoverArea) [self removeTrackingArea:self.hoverArea];
+    self.hoverArea = [[NSTrackingArea alloc] initWithRect:NSZeroRect
+        options:NSTrackingMouseEnteredAndExited | NSTrackingActiveInActiveApp |
+                NSTrackingInVisibleRect owner:self userInfo:nil];
+    [self addTrackingArea:self.hoverArea];
+    [super updateTrackingAreas];
+}
+- (void)mouseEntered:(NSEvent *)event {
+    (void)event;
+    self.hovered = YES;
+    self.needsDisplay = YES;
+}
+- (void)mouseExited:(NSEvent *)event {
+    (void)event;
+    self.hovered = NO;
+    self.needsDisplay = YES;
+}
+- (BOOL)isFlipped { return YES; }
+- (void)viewDidChangeEffectiveAppearance {
+    [super viewDidChangeEffectiveAppearance];
+    self.needsDisplay = YES;
+}
+- (void)drawRect:(NSRect)dirtyRect {
+    [super drawRect:dirtyRect];
+    NSString *appearance = [self.effectiveAppearance bestMatchFromAppearancesWithNames:
+        @[NSAppearanceNameAqua, NSAppearanceNameDarkAqua]];
+    BOOL dark = [appearance isEqualToString:NSAppearanceNameDarkAqua];
+    BOOL active = NSApp.active && self.window.keyWindow;
+    BOOL pressed = self.cell.highlighted;
+    CGFloat alpha = active ? (dark ? 0.68 : 0.64) : (dark ? 0.32 : 0.30);
+    CGFloat background = 0;
+    if (self.hovered && self.enabled) {
+        background = dark ? 0.05 : 0.04;
+        if (!active) alpha = dark ? 0.44 : 0.42;
+    }
+    if (pressed) { alpha = dark ? 0.92 : 0.90; background = dark ? 0.10 : 0.07; }
+    if (!self.enabled) alpha = dark ? 0.32 : 0.30;
+    CGFloat channel = dark ? 1 : 0;
+    if (background > 0) {
+        [[NSColor colorWithSRGBRed:channel green:channel blue:channel alpha:background] setFill];
+        [[NSBezierPath bezierPathWithOvalInRect:self.bounds] fill];
+    }
+    NSBezierPath *path = [NSBezierPath bezierPath];
+    [path moveToPoint:NSMakePoint(25.2, 19.2)];
+    [path curveToPoint:NSMakePoint(18, 26.4) controlPoint1:NSMakePoint(25.2, 23.176)
+        controlPoint2:NSMakePoint(21.976, 26.4)];
+    [path curveToPoint:NSMakePoint(10.8, 19.2) controlPoint1:NSMakePoint(14.024, 26.4)
+        controlPoint2:NSMakePoint(10.8, 23.176)];
+    [path curveToPoint:NSMakePoint(18, 12) controlPoint1:NSMakePoint(10.8, 15.224)
+        controlPoint2:NSMakePoint(14.024, 12)];
+    [path lineToPoint:NSMakePoint(22, 12)];
+    [path moveToPoint:NSMakePoint(19, 9)];
+    [path lineToPoint:NSMakePoint(22, 12)];
+    [path lineToPoint:NSMakePoint(19, 15)];
+    path.lineWidth = 1.3;
+    path.lineCapStyle = NSLineCapStyleRound;
+    path.lineJoinStyle = NSLineJoinStyleRound;
+    NSAffineTransform *scale = [NSAffineTransform transform];
+    [scale translateXBy:NSWidth(self.bounds) / 2 yBy:NSHeight(self.bounds) / 2];
+    [scale scaleXBy:NSWidth(self.bounds) / 36 * 0.90 yBy:NSHeight(self.bounds) / 36 * 0.90];
+    [scale translateXBy:-18 yBy:-18];
+    [path transformUsingAffineTransform:scale];
+    [[NSColor colorWithSRGBRed:channel green:channel blue:channel alpha:alpha] setStroke];
+    [path stroke];
+}
+
+@end
+
+static NSButton *FindNativeSidebarButton(NSView *view, NSString *label) {
+    if ([view isKindOfClass:NSButton.class] &&
+        ([view.accessibilityLabel isEqualToString:label] ||
+         [view.accessibilityTitle isEqualToString:label])) return (NSButton *)view;
+    for (NSView *child in view.subviews) {
+        NSButton *button = FindNativeSidebarButton(child, label);
+        if (button) return button;
+    }
+    return nil;
+}
+
+static NSRect SidebarReconnectFrame(NSView *parent, NSButton *bell, NSButton *settings) {
+    if (bell) {
+        NSRect frame = [bell convertRect:bell.bounds toView:parent];
+        CGFloat gap = 38;
+        if (settings) {
+            NSRect lower = [settings convertRect:settings.bounds toView:parent];
+            CGFloat measured = fabs(NSMidY(frame) - NSMidY(lower));
+            if (measured >= 28 && measured <= 64) gap = measured;
+        }
+        CGFloat y = NSMidY(frame) + (parent.isFlipped ? -gap : gap);
+        return NSMakeRect(NSMidX(frame) - 18, y - 18, 36, 36);
+    }
+    CGFloat y = parent.isFlipped ? NSHeight(parent.bounds) - 134 : 98;
+    return NSMakeRect(20, y, 36, 36);
+}
+
+static id SendObject(id object, NSString *name) {
+    SEL selector = NSSelectorFromString(name);
+    if (![object respondsToSelector:selector]) return nil;
+    return ((id (*)(id, SEL))objc_msgSend)(object, selector);
+}
+
+static BOOL SendBool(id object, NSString *name) {
+    SEL selector = NSSelectorFromString(name);
+    if (![object respondsToSelector:selector]) return NO;
+    return ((BOOL (*)(id, SEL))objc_msgSend)(object, selector);
+}
+
+static NSUInteger RebindOpenChatModels(id core) {
+    id store = SendObject(NSClassFromString(@"NTDataStore"), @"sharedInstance");
+    id nest = SendObject(store, @"nest");
+    if (!nest) return 0;
+    id manager = SendObject(core, @"chatWinManager");
+    NSMutableOrderedSet *controllers = [NSMutableOrderedSet orderedSet];
+    for (NSString *property in @[@"chatWindowControllers", @"chatThreadWindowControllers"]) {
+        id windows = SendObject(manager, property);
+        id enumerator = SendObject(windows, @"objectEnumerator");
+        id values = SendObject(enumerator, @"allObjects");
+        if (![values isKindOfClass:NSArray.class]) continue;
+        for (id window in values) {
+            id chat = SendObject(window, @"chattingController");
+            if (chat) [controllers addObject:chat];
+        }
+    }
+    NSUInteger updated = 0;
+    NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+    NSString *notification = @"MKNestDidChangeNotification";
+    SEL changed = NSSelectorFromString(@"didChangeObjects:");
+    SEL chatID = NSSelectorFromString(@"chatId");
+    SEL roomLookup = NSSelectorFromString(@"chatRoomWithId:");
+    SEL update = NSSelectorFromString(@"updateChatRoom:");
+    SEL fetch = NSSelectorFromString(@"fetchLatestMessagesWithReadmark:");
+    Class rooms = NSClassFromString(@"NTChatRoom");
+    if (![rooms respondsToSelector:roomLookup]) return 0;
+    for (id chat in controllers) {
+        if (![chat respondsToSelector:changed] || ![chat respondsToSelector:chatID] ||
+            ![chat respondsToSelector:update] || ![chat respondsToSelector:fetch]) continue;
+        int64_t identifier = ((int64_t (*)(id, SEL))objc_msgSend)(chat, chatID);
+        if (identifier <= 0) continue;
+        id room = ((id (*)(id, SEL, int64_t))objc_msgSend)(rooms, roomLookup, identifier);
+        if (!room) continue;
+        ((void (*)(id, SEL, id))objc_msgSend)(chat, update, room);
+        [center removeObserver:chat name:notification object:nil];
+        [center addObserver:chat selector:changed name:notification object:nest];
+        ((void (*)(id, SEL, BOOL))objc_msgSend)(chat, fetch, NO);
+        updated++;
+    }
+    return updated;
+}
+
+@interface SessionReconnectController : NSObject
+@property(nonatomic, strong) NSMenuItem *status;
+@property(nonatomic, strong) NSMenuItem *button;
+@property(nonatomic, strong) NSButton *sidebarButton;
+@property(nonatomic) BOOL installed;
+@property(nonatomic) BOOL awaitingConnectionEvent;
+@property(nonatomic) BOOL loginHookReady;
+@property(nonatomic, strong) NSDate *lastRequest;
+- (void)install;
+- (void)ensureMenu;
+- (void)attachSidebarButton;
+- (void)setReconnectEnabled:(BOOL)enabled;
+- (void)showStatus:(NSString *)message;
+- (void)reconnect:(id)sender;
+- (void)didConnectCore:(id)core;
+@end
+
+static SessionReconnectController *controller;
+static IMP originalDidLogin;
+
+static void ReconnectDidLogin(id core, SEL selector) {
+    ((void (*)(id, SEL))originalDidLogin)(core, selector);
+    dispatch_async(dispatch_get_main_queue(), ^{ [controller didConnectCore:core]; });
+}
+
+static BOOL InstallLoginHook(void) {
+    Class core = NSClassFromString(@"MacTalkCore");
+    Method method = class_getInstanceMethod(core, NSSelectorFromString(@"locoClientDidLogin"));
+    if (!method || method_getNumberOfArguments(method) != 2) return NO;
+    char *type = method_copyReturnType(method);
+    BOOL valid = type && strcmp(type, "v") == 0;
+    free(type);
+    if (!valid) return NO;
+    originalDidLogin = method_setImplementation(method, (IMP)ReconnectDidLogin);
+    return originalDidLogin != NULL;
+}
+
+@implementation SessionReconnectController
+- (void)install {
+    if (self.installed || !NSApp.mainMenu) return;
+    self.installed = YES;
+    self.loginHookReady = InstallLoginHook();
+    [self ensureMenu];
+    [self attachSidebarButton];
+    for (NSNotificationName name in @[NSWindowDidBecomeKeyNotification,
+            NSWindowDidResignKeyNotification, NSApplicationDidResignActiveNotification,
+            NSApplicationDidBecomeActiveNotification]) {
+        [[NSNotificationCenter defaultCenter] addObserverForName:name object:nil
+            queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+                (void)note;
+                self.sidebarButton.needsDisplay = YES;
+            }];
+    }
+    [[NSNotificationCenter defaultCenter] addObserverForName:NSWindowDidResizeNotification
+        object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+            (void)note;
+            [self attachSidebarButton];
+        }];
+    dispatch_async(dispatch_get_main_queue(), ^{ [self attachSidebarButton]; });
+    [[NSNotificationCenter defaultCenter] addObserverForName:NSWindowDidBecomeKeyNotification
+        object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+            (void)note;
+            [self ensureMenu];
+            [self attachSidebarButton];
+        }];
+    [[NSNotificationCenter defaultCenter] addObserverForName:NSApplicationDidBecomeActiveNotification
+        object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+            (void)note;
+            [self ensureMenu];
+            [self attachSidebarButton];
+            if (self.lastRequest) {
+                id core = SendObject(NSClassFromString(@"MacTalkCore"), @"core");
+                id auth = SendObject(core, @"auth");
+                [self setReconnectEnabled:!SendBool(auth, @"doingAutoLogin")];
+            }
+        }];
+}
+
+- (void)ensureMenu {
+    if (!NSApp.mainMenu || [NSApp.mainMenu itemWithTitle:@"Session"]) return;
+    NSMenuItem *root = [[NSMenuItem alloc] initWithTitle:@"Session" action:nil keyEquivalent:@""];
+    NSMenu *menu = [[NSMenu alloc] initWithTitle:@"Session"];
+    NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Reconnect on This Mac"
+        action:@selector(reconnect:) keyEquivalent:@""];
+    item.target = self;
+    [menu addItem:item];
+    self.button = item;
+    menu.autoenablesItems = NO;
+    [menu addItem:NSMenuItem.separatorItem];
+    NSString *previousStatus = self.status.title ?: @"Ready to reconnect";
+    self.status = [[NSMenuItem alloc] initWithTitle:previousStatus action:nil keyEquivalent:@""];
+    self.status.enabled = NO;
+    [menu addItem:self.status];
+    root.submenu = menu;
+    [NSApp.mainMenu addItem:root];
+}
+
+- (void)attachSidebarButton {
+    id core = SendObject(NSClassFromString(@"MacTalkCore"), @"core");
+    id main = SendObject(core, @"main");
+    id windowController = SendObject(main, @"mainWindowController");
+    NSWindow *window = SendObject(windowController, @"window");
+    if (![window isKindOfClass:NSWindow.class]) return;
+    NSView *content = window.contentView;
+    if (!content) return;
+    NSButton *bell = FindNativeSidebarButton(content, @"Notifications");
+    NSButton *settings = FindNativeSidebarButton(content, @"Settings");
+    NSView *parent = bell.superview ?: content;
+    if (self.sidebarButton.superview != parent) {
+        [self.sidebarButton removeFromSuperview];
+        self.sidebarButton = [[SessionSidebarButton alloc] initWithFrame:NSZeroRect];
+        self.sidebarButton.target = self;
+        self.sidebarButton.action = @selector(reconnect:);
+        self.sidebarButton.bordered = NO;
+        self.sidebarButton.title = @"";
+        self.sidebarButton.toolTip = @"Reconnect on This Mac";
+        self.sidebarButton.accessibilityLabel = @"Reconnect on This Mac";
+        self.sidebarButton.identifier = @"SessionReconnectSidebarButton";
+        self.sidebarButton.enabled = self.button.enabled;
+        [parent addSubview:self.sidebarButton];
+    }
+    self.sidebarButton.frame = SidebarReconnectFrame(parent, bell, settings);
+    self.sidebarButton.autoresizingMask = NSViewMaxXMargin |
+        (parent.isFlipped ? NSViewMinYMargin : NSViewMaxYMargin);
+    self.sidebarButton.needsDisplay = YES;
+    NSDictionary *layout = @{
+        @"native_button_found": @(bell != nil),
+        @"same_parent_as_notifications": @(bell && self.sidebarButton.superview == bell.superview),
+        @"parent_class": NSStringFromClass(parent.class),
+        @"reconnect_frame": NSStringFromRect(self.sidebarButton.frame),
+        @"bell_frame": bell ? NSStringFromRect([bell convertRect:bell.bounds toView:parent]) : @"",
+        @"settings_frame": settings ? NSStringFromRect([settings convertRect:settings.bounds toView:parent]) : @""
+    };
+    NSURL *cache = [[NSFileManager defaultManager] URLsForDirectory:NSCachesDirectory
+        inDomains:NSUserDomainMask].firstObject;
+    if (cache) {
+        NSData *data = [NSJSONSerialization dataWithJSONObject:layout options:0 error:nil];
+        [data writeToURL:[cache URLByAppendingPathComponent:@"SessionReconnect-layout.json"]
+            atomically:YES];
+    }
+}
+
+- (void)setReconnectEnabled:(BOOL)enabled {
+    self.button.enabled = enabled;
+    self.sidebarButton.enabled = enabled;
+}
+
+- (void)showStatus:(NSString *)message {
+    self.status.title = message;
+    self.sidebarButton.toolTip = [@"Reconnect on This Mac\n" stringByAppendingString:message];
+}
+
+- (void)reconnect:(id)sender {
+    (void)sender;
+    if (self.lastRequest && -[self.lastRequest timeIntervalSinceNow] < 5) return;
+    id core = SendObject(NSClassFromString(@"MacTalkCore"), @"core");
+    id auth = SendObject(core, @"auth");
+    SEL action = NSSelectorFromString(@"autoLoginWithForce:");
+    if (!auth || ![auth respondsToSelector:action]) {
+        [self showStatus:@"The app's login controller is not ready."];
+        return;
+    }
+    if (SendBool(auth, @"doingAutoLogin") || SendBool(auth, @"isTryingToLogin")) {
+        [self showStatus:@"A login request is already running. Wait for it to finish."];
+        return;
+    }
+    if (!SendBool(auth, @"canAutoLogin")) {
+        [self showStatus:@"Saved login is unavailable. Sign in manually with auto-login enabled."];
+        return;
+    }
+    if (!self.loginHookReady) {
+        [self showStatus:@"The connection event hook is unavailable. No request was sent."];
+        return;
+    }
+    self.awaitingConnectionEvent = YES;
+    self.lastRequest = [NSDate date];
+    [self setReconnectEnabled:NO];
+    [self showStatus:@"Requested login once. Check message delivery; the other Mac may log out."];
+    ((void (*)(id, SEL, BOOL))objc_msgSend)(auth, action, YES);
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+        [self setReconnectEnabled:!SendBool(auth, @"doingAutoLogin")];
+        if (SendBool(auth, @"doingAutoLogin")) {
+            [self showStatus:@"Login is still running. No additional request has been sent."];
+        } else {
+            if (self.awaitingConnectionEvent) {
+                [self showStatus:@"No successful connection event yet. Existing windows are unchanged."];
+            }
+
+        }
+    });
+}
+
+- (void)didConnectCore:(id)core {
+    if (!self.awaitingConnectionEvent || !self.lastRequest) return;
+    self.awaitingConnectionEvent = NO;
+    if (-[self.lastRequest timeIntervalSinceNow] > 60) {
+        [self showStatus:@"The request expired. Existing windows were not refreshed."];
+        return;
+    }
+    SEL recover = NSSelectorFromString(@"locoClientDidRecover");
+    id main = SendObject(core, @"main");
+    SEL reload = NSSelectorFromString(@"reloadAllChatMessage:");
+    if (![core respondsToSelector:recover] || ![main respondsToSelector:reload]) {
+        [self showStatus:@"Connected, but the app's window refresh methods are unavailable."];
+        return;
+    }
+    RebindOpenChatModels(core);
+    ((void (*)(id, SEL))objc_msgSend)(core, recover);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        ((void (*)(id, SEL, BOOL))objc_msgSend)(main, reload, NO);
+        id windows = SendObject(core, @"chatWinManager");
+        SEL settings = NSSelectorFromString(@"reloadAllChatRoomsSettings");
+        if ([windows respondsToSelector:settings]) {
+            ((void (*)(id, SEL))objc_msgSend)(windows, settings);
+        }
+        [self setReconnectEnabled:YES];
+        [self showStatus:@"Connected. Open chats refreshed."];
+    });
+}
+@end
+
+__attribute__((constructor)) static void InitializeReconnect(void) {
+    @autoreleasepool {
+        controller = [SessionReconnectController new];
+        [[NSNotificationCenter defaultCenter] addObserverForName:NSApplicationDidFinishLaunchingNotification
+            object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+                (void)note;
+                [controller install];
+            }];
+        dispatch_async(dispatch_get_main_queue(), ^{ [controller install]; });
+    }
+}

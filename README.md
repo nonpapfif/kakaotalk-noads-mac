@@ -1,162 +1,128 @@
-# KakaoTalk NoAds for Mac
+# KakaoTalk NoAds + Reconnect for Mac
 
-A version-locked Python tool that creates a separate KakaoTalk copy without main-window banners.
-Git contains the patcher and installation instructions. A prebuilt experimental app is available
-as a separate GitHub Release asset. This is an unofficial modified client, not a release from Kakao.
+An unofficial, version-locked KakaoTalk 26.9.0 build with no main-window banners and a
+sidebar button that brings the desktop session back to this Mac. It does not enable
+simultaneous desktop sessions.
 
-## Download
+## Download and install
 
-This README is the single installation and handoff entry point for users and coding agents.
-Download the [app ZIP](https://github.com/nonpapfif/kakaotalk-noads-mac/releases/download/v26.9.0-patch.1/KakaoTalk-NoAds-Mac-26.9.0.zip)
-and [SHA-256 file](https://github.com/nonpapfif/kakaotalk-noads-mac/releases/download/v26.9.0-patch.1/KakaoTalk-NoAds-Mac-26.9.0.sha256)
-from the [experimental release](https://github.com/nonpapfif/kakaotalk-noads-mac/releases/tag/v26.9.0-patch.1).
-Follow the complete procedure below. Building from source is optional, not an installation step.
-The archive contains `KakaoTalk.app`, without chat history, login sessions, or the original
-App Store receipt. Sign in on the destination Mac. First launch on another Mac is unverified.
+Download **one file**:
 
-### Archive layout and installer paths
+[Download the self-contained installer DMG](https://github.com/nonpapfif/kakaotalk-noads-mac/releases/download/v26.9.0-reconnect.1/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.dmg)
 
-The `v26.9.0-patch.1` ZIP contains a wrapper directory:
+1. Open the DMG and double-click **Install KakaoTalk**.
+2. Finish drafts, then click **Install and Replace KakaoTalk**.
+3. Approve administrator or default-link prompts if macOS asks.
+4. The installer opens `/Applications/KakaoTalk.app`. Sign in directly with
+   **Keep me logged in** enabled if needed.
 
-```text
-kakaotalk-release-20261103/
-  KakaoTalk.app/
-    Contents/Info.plist
-  INSTALL.md
-  HANDOFF.md
-```
+No Python, Xcode, Terminal commands, separate app ZIP, or additional network download is
+required on the destination Mac. A [ZIP of the same installer](https://github.com/nonpapfif/kakaotalk-noads-mac/releases/download/v26.9.0-reconnect.1/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.zip)
+is also available. Extract it before opening the installer.
 
-After extracting into a temporary directory, the application is at
-`<extraction-directory>/kakaotalk-release-20261103/KakaoTalk.app`, not directly at
-`<extraction-directory>/KakaoTalk.app`. Check that `Contents/Info.plist` exists before reading
-its bundle identifier. A missing plist key may indicate an incorrect extraction path, not an
-incorrect app identity. If discovering the app dynamically, match `KakaoTalk.app` or `*.app`;
-the literal pattern `.app` does not match `KakaoTalk.app`. Require exactly one candidate and
-validate its identifier, version, and signature before touching the installed app.
+**First-launch approval:** these builds are ad-hoc signed, not Kakao-signed or
+Apple-notarized. macOS may block the installer until you explicitly allow it in
+System Settings > Privacy & Security > Open Anyway. Approval may also be required for
+KakaoTalk itself. The installer does not disable Gatekeeper or remove quarantine attributes.
+An organization-managed Mac may enforce additional restrictions.
 
-Safari may automatically extract downloaded ZIP files. Checksum verification requires the
-original ZIP bytes and the matching SHA-256 file, not just an extracted application directory.
-Do not reconstruct a ZIP and compare it with the published checksum.
+Checksums and the standalone app ZIP are on the
+[release page](https://github.com/nonpapfif/kakaotalk-noads-mac/releases/tag/v26.9.0-reconnect.1).
 
-## Supported source
+## What the installer does
 
-- KakaoTalk 26.9.0, build 2006.
-- Original executable SHA-256: `456e1a3ed7a87168888bdb8c6e4894764a028e62c0af68562a760d9909d2bb65`.
-- The source must be an unmodified application supplied separately by the user.
-- A newer version or an already patched application is rejected.
+- Verifies its bundled payload checksum, app identity, version, executable/helper hashes,
+  and code signature before touching the installed application.
+- Asks running official/NoAds/reconnect clients to quit. If they remain open, installation
+  stops without replacing the app. It does not force-quit or discard drafts.
+- Backs up the existing app to `/Applications/KakaoTalk Backups/` before replacement.
+- Installs the bundled `KakaoTalk.app` at `/Applications/KakaoTalk.app`.
+- Restores the previous app if the replacement transaction fails.
+- Replaces stale KakaoTalk Dock entries and verifies the new target.
+- Sets and verifies `kakaotalk`, `kakaoopen`, `kakaoplus`, and `kakaoshare` defaults.
+- Opens the app and saves a local installation report and Dock backup under
+  `~/Library/Application Support/KakaoTalk NoAds Installer/`.
 
-## Build
+If link approval is declined, the app remains installed and the installer reports which
+links were not configured. It does not silently claim full success.
+The bundled app is fixed at 26.9.0/build 2006; installing it can replace a newer client.
+The installer refuses an unexpected application identity at the destination.
 
-Requires macOS, Python 3.9 or later, and the `codesign` command.
-No third-party Python packages are required.
+## Chat data and login
 
-```sh
-python3 patch_kakaotalk.py \
-  --source /path/to/original/KakaoTalk.app \
-  --output /path/to/output/KakaoTalk.app
-```
+The installer never deletes Library containers, group containers, Keychain entries,
+attachments, or chat backups. **Keeping data files does not automatically migrate history
+between application identities.**
 
-The output path must not exist. The source is never overwritten.
-The app keeps the display name `KakaoTalk` but uses bundle identifier
-`local.elsholtzia.KakaoTalkNoAds` and a separate sandbox container.
-The output is signed ad hoc, not signed by Kakao or notarized by Apple.
-The original app-group entitlement is removed. Library validation is disabled for the copy;
-App Sandbox and Hardened Runtime remain enabled.
-The builder copies application files only. It does not copy login sessions or chat databases.
-Unlike the separately prepared portable package, the builder does not remove the source app's
-App Store receipt. Do not confuse a local build with the receipt-free portable package.
+| App | Bundle identity | Data behavior |
+| --- | --- | --- |
+| Official KakaoTalk | `com.kakao.KakaoTalkMac` | Its data is retained separately. |
+| Older NoAds build | `local.elsholtzia.KakaoTalkNoAds` | Its data is retained separately. |
+| This reconnect build | `local.elsholtzia.KakaoTalkReconnectExperiment` | Existing reconnect data is reused. |
+
+The reconnect identity is retained intentionally, despite its historical name, so existing
+users keep the data container they tested. Only the app's visible name is `KakaoTalk`.
+For history migration from another identity, use KakaoTalk's supported backup/restore
+separately. Do not use an app cleaner. Do not copy another Mac's login/session databases.
+No credentials, sessions, or chat data are distributed in the installer or app archive.
+Never send your password to an agent or put it in this repository.
+
+## Reconnect on this Mac
+
+Click the circular-arrow button above Notifications in the left sidebar, or choose
+**Session > Reconnect on This Mac**. The app requests the desktop session once using its
+native saved-authentication flow. It then rebinds existing chat models to the current data
+store and refreshes open chats after a successful native connection event.
+
+The sidebar button shares the original sidebar parent, 36-point hit area, center alignment,
+and 40-point spacing. Its custom vector is scaled to 90% inside that area. Normal, hover,
+pressed, active/inactive, and light/dark colors follow the original sidebar asset values.
+No background polling or automatic takeover is added.
+
+Another desktop may be logged out. Its unmodified auto-recovery can take the session back.
+Using this build on both Macs avoids that specific automatic-recovery path; two-Mac use of
+the final installer remains unverified. If saved authentication expires, sign in manually.
+**Automatic recovery is disabled**, including after ordinary network interruptions, so the
+button may also be needed when a network connection returns. While another Mac owns the
+session, old chat content can remain visible without being connected.
 
 ## Verification and limits
 
-The initial patch was tested on Apple Silicon with macOS 26.6.2.
-Main-window banners and their reserved space were absent in Friends, Chats, and More.
-Window resizing was also checked. The patch introduces no monitoring process or polling timer.
-Intel machine code is patched, but Intel hardware has not been tested.
-Lock mode, calls, file transfer, sharing extensions, login items, and long-term compatibility
-remain unverified. Features relying on the original app group may be affected.
-Channel advertisements delivered as chat messages are outside the scope of this patch.
-This is not a verified block of all advertising network requests.
-There is no automatic update detection or automatic support for future versions.
+The owner verified on Apple Silicon: main-window ad removal; manual session takeover;
+sending from a previously opened chat; live chat-content updates after model rebinding;
+sidebar appearance; and local replacement as the main application with Dock/URL defaults.
 
-## Install and replace the official app
+The universal installer was compiled for arm64 and x86_64 with macOS 13 as its minimum.
+Intel runtime, a clean second-Mac installer run, all auxiliary windows, calls, file transfer,
+sharing extensions, startup items, and long-term behavior have not been fully verified.
+Dark-mode colors were derived from original assets; complete dark-mode visual QA is pending.
+This is not a block of all advertising traffic. Channel ads delivered as messages are outside
+scope. There is no automatic compatibility with future KakaoTalk versions or App Store updates.
+The app retains sandbox and hardened runtime, removes the original App Group entitlement,
+and disables library validation for the added helper. Official signing cannot be retained.
 
-The goal is to use the patched app as `/Applications/KakaoTalk.app`, with the display name
-`KakaoTalk`, and make it the Dock and KakaoTalk URL-scheme target on the destination Mac.
-This procedure requires local access to that Mac. A GitHub link does not install anything by itself.
+## Build from source
 
-### Identify the apps
+Building is optional. Development requires macOS, Command Line Tools, and Python 3.9+.
+The destination user only needs the prebuilt installer.
 
-| App | Bundle identifier |
-| --- | --- |
-| Official app | `com.kakao.KakaoTalkMac` |
-| Patched app | `local.elsholtzia.KakaoTalkNoAds` |
+```sh
+python3 build_reconnect.py --source /path/to/official/KakaoTalk.app --output /tmp/KakaoTalk.app
+python3 build_installer.py --app /tmp/KakaoTalk.app --output /tmp/kakao-installer
+```
 
-Read `Contents/Info.plist`; do not identify the removal target by its name alone.
-Do not change the patched identifier to the official identifier. Storage depends on this identity.
+The source must be the unmodified official **26.9.0 build 2006** executable with SHA-256
+`456e1a3ed7a87168888bdb8c6e4894764a028e62c0af68562a760d9909d2bb65`.
+The builder checks the hash and original bytes at every patch site. It copies no user data
+and removes the copied App Store receipt. Do not reuse offsets on another version.
 
-### Installation procedure
+`patch_kakaotalk.py` remains available for the historical ad-only build. Its output uses
+the older NoAds identity and does not include reconnect. The prebuilt installer uses the
+owner-tested reconnect binary; a fresh end-to-end build from the official source has not
+been revalidated for this release.
 
-1. Download both release assets linked above. In their download directory, run
-   `shasum -a 256 -c KakaoTalk-NoAds-Mac-26.9.0.sha256` and require an `OK` result.
-2. Extract the ZIP using a macOS-compatible archive utility that preserves app symlinks.
-   Use the nested app path shown under Archive layout and installer paths. Verify that its
-   `Contents/Info.plist` exists, then verify the app identity, version 26.9.0 / build 2006,
-   and signature before removal.
-3. Check whether the existing app contains local history that the user needs. Preserve it;
-   separate patched storage does not automatically inherit official local history.
-4. Quit both apps without logging out. If the installed app is the official app, move only
-   that application to Trash through Finder. Keep it recoverable for rollback. The user must
-   handle any administrator prompt directly. Do not empty Trash or remove related user data.
-5. Move the extracted `KakaoTalk.app` to `/Applications/KakaoTalk.app`.
-   If an app with the patched identifier is already installed, treat this as a patched-app update
-   rather than blindly applying the official-app removal step.
-6. Verify the final path and bundle identifier. Run
-   `codesign --verify --deep --strict /Applications/KakaoTalk.app` and check its exit status.
-   A successful check is not proof of notarization, compatibility, or safety.
-7. Launch that exact installed path. Let the user sign in directly on the destination Mac.
-   Never request a password or QR authentication secret in chat.
-8. Replace stale Dock entries with the app at the final installed path, keeping the name `KakaoTalk`.
-9. Configure and verify the four default URL handlers described below.
-10. Verify Friends, Chats, More, and window resizing. Confirm that the main-window banner and
-    reserved space are absent. Do not send a message or click an advertisement as a test.
+## Restore the previous app
 
-If installation fails, retain the original app for restoration. Do not delete chat data to fix
-an installation or authorization failure.
-
-### Default URL handlers
-
-The app declares `kakaotalk`, `kakaoopen`, `kakaoplus`, and `kakaoshare`.
-Installing or renaming it does not prove that these default handlers changed.
-Use the public `NSWorkspace.setDefaultApplication(at:toOpenURLsWithScheme:completion:)` API
-for each scheme with application URL `/Applications/KakaoTalk.app`.
-Wait for each asynchronous result and let the user handle any system consent prompt.
-Use `NSWorkspace.urlForApplication(toOpen:)` to query the resulting handler without opening
-an advertising or message-sending link. Verify both the returned path and bundle identifier.
-Report failures instead of assuming success. The downloaded app and patcher do not configure
-these defaults automatically; the installer or coding agent must do this on the destination Mac.
-
-### Preserve data and security settings
-
-Do not remove Library containers, group containers, Keychain items, attachments, or backups.
-Do not use an app cleaner that also deletes related data. Use KakaoTalk's supported backup and
-restore process separately if history migration is needed. Never copy another Mac's session
-or chat database as part of application packaging.
-
-The ad-hoc app may be blocked on another Mac. Follow Apple's app-specific opening guidance
-and let the user handle security decisions. Do not disable Gatekeeper or SIP, or strip quarantine
-attributes in bulk. A managed Mac may prohibit installation. Record the actual blocker if so.
-
-### Completion report
-
-Report the final path, bundle identifier, version, original-app Trash status, signature check,
-login and banner results, Dock target, and the resolved path and identifier for each URL scheme.
-List unverified features separately. Do not report completion before checking these results.
-
-No application binaries are tracked in Git. No user data, credentials, or local diagnostic reports
-are included in Git or in the release package. No redistribution license for the original
-KakaoTalk application is granted by this repository.
-
-## References
-
-- [Apple: Open apps safely](https://support.apple.com/en-gb/102445)
-- [Apple: Default app for URL schemes](https://developer.apple.com/documentation/appkit/nsworkspace/setdefaultapplication(at:toopenurlswithscheme:completion:))
+Quit the current KakaoTalk. Move `/Applications/KakaoTalk.app` aside, then copy the desired
+backup from `/Applications/KakaoTalk Backups/` to `/Applications/KakaoTalk.app`.
+Keep all Library data. Update the Dock and default URL handlers to the restored identity.

@@ -5,3 +5,6 @@
 *.patch.json
 __pycache__/
 .DS_Store
+*.dylib
+*.build.json
+dist/
