@@ -145,3 +145,13 @@ deep strict signature check passed, the /Applications process relaunched, the pe
 pointer was removed, and the updater report records the previous-app backup and no
 failures for any of the four default URL handlers. No chat or login data was copied or
 deleted by the updater. Clean second-Mac and administrator-elevation coverage remain pending.
+
+## Continuous update window: 26.9.0-reconnect.6
+
+A single retained native panel now displays checking, availability, downloading, readiness
+and errors. Only the text, progress indicator and button action change. A separate
+sandboxed UI preview used the production updater code to download a real GitHub payload.
+The native accessibility window and button remained the same between Download Update
+and Restart Now, and the ready layout was inspected visually. Both architectures compile.
+The owner's main app received the UI change and passed signature verification. The
+previously verified download/validation/replacement protocol is unchanged.

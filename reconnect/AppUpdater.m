@@ -63,6 +63,13 @@ static BOOL RunCommand(NSString *path, NSArray<NSString *> *arguments, NSError *
 @property(nonatomic) BOOL busy;
 @property(nonatomic) BOOL helperLaunched;
 @property(nonatomic) BOOL helperLaunching;
+@property(nonatomic, strong) NSPanel *updateWindow;
+@property(nonatomic, strong) NSTextField *windowTitle;
+@property(nonatomic, strong) NSTextField *windowMessage;
+@property(nonatomic, strong) NSProgressIndicator *windowProgress;
+@property(nonatomic, strong) NSButton *primaryButton;
+@property(nonatomic, strong) NSButton *secondaryButton;
+@property(nonatomic, strong) NSDictionary *availableRelease;
 - (void)checkForUpdates:(id)sender;
 - (void)terminateApplication:(id)sender;
 @end
@@ -118,31 +125,88 @@ static void TerminateWithUpdate(id app, SEL selector, id sender) {
     [menu insertItem:item atIndex:MIN(1, menu.numberOfItems)];
     self.item = item;
 }
+- (void)ensureUpdateWindow {
+    if (self.updateWindow) return;
+    self.updateWindow = [[NSPanel alloc] initWithContentRect:NSMakeRect(0, 0, 440, 218)
+        styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
+        backing:NSBackingStoreBuffered defer:NO];
+    self.updateWindow.title = @"KakaoTalk Update";
+    self.updateWindow.releasedWhenClosed = NO;
+    self.windowTitle = [NSTextField labelWithString:@""];
+    self.windowTitle.font = [NSFont systemFontOfSize:17 weight:NSFontWeightSemibold];
+    self.windowTitle.frame = NSMakeRect(28, 164, 384, 26);
+    self.windowMessage = [NSTextField wrappingLabelWithString:@""];
+    self.windowMessage.font = [NSFont systemFontOfSize:13];
+    self.windowMessage.textColor = NSColor.secondaryLabelColor;
+    self.windowMessage.frame = NSMakeRect(28, 68, 384, 84);
+    self.windowProgress = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(28, 26, 20, 20)];
+    self.windowProgress.style = NSProgressIndicatorStyleSpinning;
+    self.windowProgress.displayedWhenStopped = NO;
+    self.primaryButton = [[NSButton alloc] initWithFrame:NSMakeRect(248, 20, 164, 34)];
+    self.primaryButton.bezelStyle = NSBezelStyleRounded;
+    self.primaryButton.target = self;
+    self.primaryButton.keyEquivalent = @"\r";
+    self.secondaryButton = [[NSButton alloc] initWithFrame:NSMakeRect(140, 20, 100, 34)];
+    self.secondaryButton.bezelStyle = NSBezelStyleRounded;
+    self.secondaryButton.target = self;
+    self.secondaryButton.action = @selector(closeUpdateWindow:);
+    self.secondaryButton.title = @"Later";
+    for (NSView *view in @[self.windowTitle, self.windowMessage, self.windowProgress,
+                          self.primaryButton, self.secondaryButton])
+        [self.updateWindow.contentView addSubview:view];
+    [self.updateWindow center];
+}
+- (void)showUpdateTitle:(NSString *)title message:(NSString *)message
+    button:(NSString *)button action:(SEL)action spinning:(BOOL)spinning {
+    [self ensureUpdateWindow];
+    self.windowTitle.stringValue = title;
+    self.windowMessage.stringValue = message;
+    self.primaryButton.title = button;
+    self.primaryButton.action = action;
+    self.primaryButton.enabled = action != NULL;
+    self.secondaryButton.hidden = !spinning && action == @selector(closeUpdateWindow:);
+    if (spinning) [self.windowProgress startAnimation:nil];
+    else [self.windowProgress stopAnimation:nil];
+    [self.updateWindow makeKeyAndOrderFront:nil];
+}
+- (void)closeUpdateWindow:(id)sender {
+    (void)sender;
+    [self.updateWindow orderOut:nil];
+}
+- (void)downloadAvailableUpdate:(id)sender {
+    (void)sender;
+    if (!self.busy && self.availableRelease) [self downloadRelease:self.availableRelease];
+}
+- (void)restartForUpdate:(id)sender {
+    (void)sender;
+    [self showUpdateTitle:@"Restarting..." message:@"Waiting for KakaoTalk to quit safely."
+        button:@"Restarting..." action:NULL spinning:YES];
+    [NSApp terminate:nil];
+}
 - (void)showError:(NSError *)error {
     dispatch_async(dispatch_get_main_queue(), ^{
         self.busy = NO;
         self.item.title = self.readyFolder ? @"Restart to Update..." : @"Check for Updates...";
-        NSAlert *alert = [NSAlert new];
-        alert.messageText = @"Update could not finish";
-        alert.informativeText = error.localizedDescription;
-        [alert runModal];
+        [self showUpdateTitle:@"Update could not finish" message:error.localizedDescription
+            button:self.readyFolder ? @"Restart Now" : @"Try Again"
+            action:self.readyFolder ? @selector(restartForUpdate:) : @selector(checkForUpdates:)
+            spinning:NO];
     });
 }
 - (void)showReady {
     self.item.title = @"Restart to Update...";
-    NSAlert *alert = [NSAlert new];
-    alert.messageText = @"Update ready";
-    alert.informativeText = @"The update has been downloaded and verified. It will be applied after KakaoTalk quits. Finish drafts before restarting. Existing chat data is kept.";
-    [alert addButtonWithTitle:@"Restart Now"];
-    [alert addButtonWithTitle:@"Later"];
-    if ([alert runModal] == NSAlertFirstButtonReturn) [NSApp terminate:nil];
+    [self showUpdateTitle:@"Update ready" message:
+        @"The download is verified. Restart now, or keep working and update after quitting KakaoTalk. Finish drafts before restarting. Existing chat data is kept."
+        button:@"Restart Now" action:@selector(restartForUpdate:) spinning:NO];
 }
 - (void)checkForUpdates:(id)sender {
     (void)sender;
-    if (self.busy) return;
+    if (self.busy) { [self.updateWindow makeKeyAndOrderFront:nil]; return; }
     if (self.readyFolder) { [self showReady]; return; }
     self.busy = YES;
     self.item.title = @"Checking for Updates...";
+    [self showUpdateTitle:@"Checking for updates..." message:@"Checking the latest GitHub release."
+        button:@"Checking..." action:NULL spinning:YES];
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:
         @"https://api.github.com/repos/nonpapfif/kakaotalk-noads-reconnect/releases?per_page=100"]
         cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:20];
@@ -168,18 +232,16 @@ static void TerminateWithUpdate(id app, SEL selector, id sender) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 self.busy = NO;
                 self.item.title = @"Check for Updates...";
-                NSAlert *alert = [NSAlert new];
+                self.availableRelease = latest;
                 if (!latest) {
-                    alert.messageText = @"You're up to date";
-                    alert.informativeText = [@"Installed release: " stringByAppendingString:CurrentRelease()];
-                    [alert runModal]; return;
+                    [self showUpdateTitle:@"You're up to date" message:
+                        [@"Installed release: " stringByAppendingString:CurrentRelease()]
+                        button:@"Done" action:@selector(closeUpdateWindow:) spinning:NO];
+                    return;
                 }
-                alert.messageText = @"An update is available";
-                alert.informativeText = [NSString stringWithFormat:
-                    @"Installed: %@\nAvailable: %@\n\nDownload now and apply after KakaoTalk quits?", CurrentRelease(), tag];
-                [alert addButtonWithTitle:@"Download Update"];
-                [alert addButtonWithTitle:@"Later"];
-                if ([alert runModal] == NSAlertFirstButtonReturn) [self downloadRelease:latest];
+                [self showUpdateTitle:@"An update is available" message:[NSString stringWithFormat:
+                    @"Installed: %@\nAvailable: %@\n\nDownload now and apply after KakaoTalk quits?", CurrentRelease(), tag]
+                    button:@"Download Update" action:@selector(downloadAvailableUpdate:) spinning:NO];
             });
         }] resume];
 }
@@ -202,6 +264,9 @@ static void TerminateWithUpdate(id app, SEL selector, id sender) {
     if (!asset) { [self showError:UpdateError(@"This release has no verified in-app update package. Use its installer instead.")]; return; }
     self.busy = YES;
     self.item.title = @"Downloading Update...";
+    [self showUpdateTitle:@"Downloading update..." message:
+        @"You can keep using KakaoTalk. The downloaded files will be verified before the update is ready."
+        button:@"Downloading..." action:NULL spinning:YES];
     NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:asset[@"browser_download_url"]]
         cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:60];
     [[self.session dataTaskWithRequest:request completionHandler:

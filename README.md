@@ -8,7 +8,7 @@ simultaneous desktop sessions.
 
 Download **one file**:
 
-[Download the self-contained installer DMG](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/download/v26.9.0-reconnect.5/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.dmg)
+[Download the self-contained installer DMG](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/download/v26.9.0-reconnect.6/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.dmg)
 
 1. Open the DMG and double-click **Install KakaoTalk**.
 2. Finish drafts, then click **Update KakaoTalk** for an existing reconnect build,
@@ -18,7 +18,7 @@ Download **one file**:
    **Keep me logged in** enabled if needed.
 
 No Python, Xcode, Terminal commands, separate app ZIP, or additional network download is
-required on the destination Mac. A [ZIP of the same installer](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/download/v26.9.0-reconnect.5/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.zip)
+required on the destination Mac. A [ZIP of the same installer](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/download/v26.9.0-reconnect.6/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.zip)
 is also available. Extract it before opening the installer.
 
 **First-launch approval:** these builds are ad-hoc signed, not Kakao-signed or
@@ -28,7 +28,7 @@ KakaoTalk itself. The installer does not disable Gatekeeper or remove quarantine
 An organization-managed Mac may enforce additional restrictions.
 
 Checksums and the standalone app ZIP are on the
-[release page](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/tag/v26.9.0-reconnect.5).
+[release page](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/tag/v26.9.0-reconnect.6).
 
 ## What the installer does
 
@@ -65,7 +65,8 @@ once to gain in-app downloads. Checking and downloading happen only when request
 If a newer reconnect release is available, choose **Download Update**. The app verifies
 GitHub asset SHA-256 digests, the update manifest, app identity/version, and code signature
 before showing **Update ready**. Choose **Restart Now** or **Later**. The menu changes to
-**Restart to Update...** while an update is staged.
+**Restart to Update...** while an update is staged. Checking, download, errors and restart
+readiness share one persistent window; its text and buttons change without replacing it.
 
 A staged update is applied after a normal app quit, including when you choose Later and
 quit afterward. A separate helper waits for the parent process exit using a kernel event;
