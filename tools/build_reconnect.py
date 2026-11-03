@@ -12,6 +12,7 @@ import subprocess
 import tempfile
 
 from tools import patch_kakaotalk as base
+from tools.build_updater import build as build_updater
 from compatibility import BUNDLE_ID, load_profile, require_source
 from reconnect.inject_load_command import inject
 
@@ -60,7 +61,8 @@ def build(source: Path, output: Path) -> None:
             '-arch', 'arm64', '-arch', 'x86_64',
             '-mmacosx-version-min=' + profile['minimum_macos'], '-framework',
             'Cocoa', '-install_name', '@rpath/SessionReconnect.dylib',
-            str(root / 'reconnect/SessionReconnect.m'), '-o', str(helper),
+            str(root / 'reconnect/SessionReconnect.m'), str(root / 'reconnect/AppUpdater.m'),
+            '-o', str(helper),
         ], check=True)
         entitlements = base.arm64_entitlements(original)
         entitlements.pop('com.apple.security.application-groups', None)
@@ -70,12 +72,21 @@ def build(source: Path, output: Path) -> None:
         shutil.copytree(source, output, symlinks=True, copy_function=shutil.copy)
         (output / binary_path).write_bytes(patched)
         shutil.copy(helper, output / 'Contents/Frameworks/SessionReconnect.dylib')
-        info.update(CFBundleIdentifier=BUNDLE_ID, CFBundleName='KakaoTalk', CFBundleDisplayName='KakaoTalk')
+        build_updater(output / 'Contents/Helpers/KakaoTalkUpdater.app')
+        info.update(CFBundleIdentifier=BUNDLE_ID, CFBundleName='KakaoTalk',
+                    CFBundleDisplayName='KakaoTalk', KakaoTalkPatchRelease=profile['patch_release'])
         (output / 'Contents/Info.plist').write_bytes(plistlib.dumps(info))
         receipt = output / 'Contents/_MASReceipt'
         if receipt.exists():
             shutil.rmtree(receipt)
         subprocess.run(['codesign', '--force', '--deep', '--sign', '-', '--options', 'runtime',
+                        '--entitlements', str(entitlement_file), str(output)], check=True)
+        empty_entitlements = directory / 'updater-entitlements.plist'
+        empty_entitlements.write_bytes(plistlib.dumps({}))
+        subprocess.run(['codesign', '--force', '--sign', '-', '--options', 'runtime',
+                        '--entitlements', str(empty_entitlements),
+                        str(output / 'Contents/Helpers/KakaoTalkUpdater.app')], check=True)
+        subprocess.run(['codesign', '--force', '--sign', '-', '--options', 'runtime',
                         '--entitlements', str(entitlement_file), str(output)], check=True)
         subprocess.run(['codesign', '--verify', '--deep', '--strict', str(output)], check=True)
     if hashlib.sha256((source / binary_path).read_bytes()).hexdigest() != profile['source_sha256']:

@@ -36,6 +36,9 @@ def load_profile(version: str, build: str, directory: Path = PROFILE_ROOT) -> di
         raise ValueError('Profile has an invalid source hash')
     if not re.fullmatch(r'[0-9]+(?:\.[0-9]+)*', profile.get('minimum_macos', '')):
         raise ValueError('Invalid minimum macOS version')
+    if not re.fullmatch(re.escape('v' + version) + r'-reconnect\.[0-9]+',
+                        profile.get('patch_release', '')):
+        raise ValueError('Invalid patch release tag')
     patches = profile.get('patches', [])
     if not patches:
         raise ValueError('Profile has no patches')

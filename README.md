@@ -8,7 +8,7 @@ simultaneous desktop sessions.
 
 Download **one file**:
 
-[Download the self-contained installer DMG](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/download/v26.9.0-reconnect.3/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.dmg)
+[Download the self-contained installer DMG](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/download/v26.9.0-reconnect.4/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.dmg)
 
 1. Open the DMG and double-click **Install KakaoTalk**.
 2. Finish drafts, then click **Update KakaoTalk** for an existing reconnect build,
@@ -18,7 +18,7 @@ Download **one file**:
    **Keep me logged in** enabled if needed.
 
 No Python, Xcode, Terminal commands, separate app ZIP, or additional network download is
-required on the destination Mac. A [ZIP of the same installer](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/download/v26.9.0-reconnect.3/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.zip)
+required on the destination Mac. A [ZIP of the same installer](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/download/v26.9.0-reconnect.4/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.zip)
 is also available. Extract it before opening the installer.
 
 **First-launch approval:** these builds are ad-hoc signed, not Kakao-signed or
@@ -28,7 +28,7 @@ KakaoTalk itself. The installer does not disable Gatekeeper or remove quarantine
 An organization-managed Mac may enforce additional restrictions.
 
 Checksums and the standalone app ZIP are on the
-[release page](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/tag/v26.9.0-reconnect.3).
+[release page](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/tag/v26.9.0-reconnect.4).
 
 ## What the installer does
 
@@ -56,7 +56,29 @@ identity and offers **Update KakaoTalk**. No uninstall or data migration is need
 Even when the KakaoTalk version/build is unchanged, a different executable or helper hash
 triggers a backed-up replacement. An identical payload is left in place.
 Existing reconnect data and saved login remain in the same container; expired authentication
-can still require manual sign-in. The installer does not launch a background updater.
+can still require manual sign-in. The installer does not launch a background update watcher.
+
+### In-app updates
+
+This release adds **Settings > Check for Updates...**. Earlier releases need this installer
+once to gain in-app downloads. Checking and downloading happen only when requested.
+If a newer reconnect release is available, choose **Download Update**. The app verifies
+GitHub asset SHA-256 digests, the update manifest, app identity/version, and code signature
+before showing **Update ready**. Choose **Restart Now** or **Later**. The menu changes to
+**Restart to Update...** while an update is staged.
+
+A staged update is applied after a normal app quit, including when you choose Later and
+quit afterward. A separate helper waits for the parent process exit using a kernel event;
+it does not poll or force-quit KakaoTalk. It backs up and replaces the app using the same
+transaction as the installer, then relaunches it. Existing data containers and Keychain
+entries are untouched. Administrator approval may be requested by macOS.
+
+Update trust relies on HTTPS and this GitHub repository's release/asset metadata. These
+apps remain ad-hoc signed; checksums are not an independent publisher signature. There is
+no background update checking, restart-free code replacement, or downgrade support.
+Forced termination, crashes, logout/shutdown, and interrupted network access may leave an
+update staged for a later normal quit. Failed replacement retains/restores the previous
+app; its backup is under `/Applications/KakaoTalk Backups/`.
 
 ## Chat data and login
 
@@ -148,8 +170,8 @@ See [update maintenance guide](docs/UPDATES.md) for the version-profile maintena
 checklist. Only the reviewed 26.9.0/build 2006 source is currently approved. Future versions
 must get their own reviewed profile and functional validation before release.
 The tools refuse unknown versions and hashes. The next installer can use its own payload
-version, keep the same data identity, and refuse downgrades. This does not add an automatic
-in-app updater or guarantee compatibility with an untested official release.
+version, keep the same data identity, and refuse downgrades. In-app delivery still requires
+a reviewed release and does not guarantee compatibility with an untested official version.
 
 ## Repository layout
 
@@ -157,6 +179,7 @@ in-app updater or guarantee compatibility with an untested official release.
 - `tools/`: Python build and read-only inspection commands; run with `python3 -m tools.<name>`.
 - `reconnect/`: native reconnect helper, vector assets, and Mach-O load-command injection.
 - `installer/`: native installer UI and application replacement transaction.
+- `updater/`: external helper and staged-payload validation for updates after exit.
 - `compatibility/`: source validation and reviewed version profiles.
 - `tests/`: compatibility and disposable installer transaction checks.
 

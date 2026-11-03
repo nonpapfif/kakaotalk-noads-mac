@@ -97,7 +97,9 @@
     "mainWindowController",
     "nest",
     "sharedInstance",
-    "loggedIn"
+    "loggedIn",
+    "mainViewController",
+    "miscMenu"
   ],
   "validation_scope": [
     "owner-tested Apple Silicon app",
@@ -111,5 +113,6 @@
     "all auxiliary windows and long-term behavior",
     "complete dark-mode visual QA",
     "fresh rebuild from original official app for this release"
-  ]
+  ],
+  "patch_release": "v26.9.0-reconnect.4"
 }

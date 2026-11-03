@@ -17,10 +17,10 @@ The new tooling handles version selection, source guards, packaging metadata and
 checks. It cannot infer correct semantics of an arbitrary new binary, guarantee future
 server authentication behavior, or replace real login/send/receive tests.
 
-There is no background update watcher, automatic patching of App Store updates, or in-app
-update downloader in this change. Users still download a tested release installer.
-A future update downloader needs an authenticated release channel, signing-key management,
-and permission/UI design. It must only deliver reviewed releases, not patch unknown code.
+The app now downloads reviewed GitHub release payloads on demand and applies them after
+normal app termination. It does not patch App Store updates, watch for updates in the
+background, or infer compatibility. HTTPS and GitHub release asset digests form the update
+trust boundary; ad-hoc signing does not provide an independent publisher signature.
 
 ## Current layout
 
@@ -52,7 +52,8 @@ Never set it merely to bypass an unsupported-version error.
 
    An unknown version/hash must report `build_allowed: false`. The tool reads app files,
    not Library, chat databases, Keychain, credentials or live network traffic.
-3. Review the new binary and helper interfaces. Add a new profile with the exact source
+3. Review the new binary and helper interfaces. Set the profile's `patch_release` to the
+   intended reconnect release tag before building. Add a new profile with the exact source
    hash and independently verified code locations. Do not carry offsets forward based
    only on matching version strings or a coincidental byte pattern. Selector-name presence
    is advisory: it does not prove class ownership, method signature or runtime behavior.
@@ -77,8 +78,10 @@ Never set it merely to bypass an unsupported-version error.
    python3 -m tools.build_installer --app /tmp/KakaoTalk.app --output /tmp/new-kakao-installer
    ```
 
-8. Publish a new GitHub release only after functional review. Upload the DMG, ZIP and
-   checksums, and point the README to that reviewed release. Do not replace old release
+8. Set the profile's `patch_release` to the new reconnect release tag. The source builder
+   embeds it as `KakaoTalkPatchRelease`. Publish only after functional review. Upload the
+   DMG, installer/app ZIPs, `Update.json`, update ZIP and checksums. The update manifest
+   must match the release tag and its GitHub asset digests. Point the README to that release. Do not replace old release
    assets silently. Keep the previous version available for recovery.
 
 ## Functional acceptance checklist

@@ -30,6 +30,9 @@ def build(app: Path, output: Path) -> None:
     info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
     version, build_number = info['CFBundleShortVersionString'], info['CFBundleVersion']
     profile = load_profile(version, build_number)
+    release_tag = info.get('KakaoTalkPatchRelease')
+    if release_tag != profile['patch_release']:
+        raise ValueError('Payload patch release does not match the reviewed profile')
     if info['CFBundleIdentifier'] != BUNDLE_ID:
         raise ValueError('Expected the supported reconnect identity')
     subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True)
@@ -53,7 +56,7 @@ def build(app: Path, output: Path) -> None:
         'CFBundleIdentifier': 'local.elsholtzia.KakaoTalkNoAdsInstaller',
         'CFBundleName': 'Install KakaoTalk', 'CFBundleDisplayName': 'Install KakaoTalk',
         'CFBundleExecutable': 'Installer', 'CFBundlePackageType': 'APPL',
-        'CFBundleShortVersionString': '1.2.0', 'CFBundleVersion': '3',
+        'CFBundleShortVersionString': '1.3.0', 'CFBundleVersion': '4',
         'KakaoTalkPayloadVersion': version,
         'LSMinimumSystemVersion': profile['minimum_macos'], 'NSHighResolutionCapable': True,
     }
@@ -80,10 +83,25 @@ def build(app: Path, output: Path) -> None:
     with tempfile.TemporaryDirectory(prefix='kakao-dmg-content-') as temporary:
         staged = Path(temporary) / installer.name
         shutil.copytree(installer, staged, symlinks=True, copy_function=shutil.copy)
-        subprocess.run(['hdiutil', 'create', '-srcfolder', temporary, '-volname',
-                        'KakaoTalk Installer', '-format', 'UDZO', str(dmg)], check=True)
+        size_mib = max(256, sum(path.stat().st_size for path in staged.rglob('*')
+                                if path.is_file()) // 1_048_576 + 64)
+        subprocess.run(['hdiutil', 'create', '-srcfolder', temporary, '-size',
+                        f'{size_mib}m', '-volname', 'KakaoTalk Installer ' + release_tag,
+                        '-format', 'UDZO', str(dmg)], check=True)
+    update_zip = output / f'KakaoTalk-NoAds-Reconnect-Update-{version}.zip'
+    shutil.copy(archive, update_zip)
+    update_manifest = {
+        'release_tag': release_tag, 'app_version': version, 'app_build': build_number,
+        'bundle_id': BUNDLE_ID, 'minimum_macos': profile['minimum_macos'],
+        'archive_name': update_zip.name, 'archive_sha256': digest(update_zip),
+        'executable_sha256': manifest['executable_sha256'],
+        'helper_sha256': manifest['helper_sha256'],
+    }
+    update_json = output / 'Update.json'
+    update_json.write_text(json.dumps(update_manifest, indent=2) + '\n')
     (output / 'SHA256SUMS').write_text(''.join(
-        digest(path) + '  ' + path.name + '\n' for path in (dmg, zip_path)
+        digest(path) + '  ' + path.name + '\n'
+        for path in (dmg, zip_path, update_zip, update_json)
     ))
     print(f'Built {installer}, {zip_path}, and {dmg}')
 

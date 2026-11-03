@@ -108,3 +108,23 @@ explained reuse of existing reconnect login/chat data. Installation was not run 
 this refreshed GUI. Both payload archives matched the release executable/helper hashes.
 The standalone archive was extracted and its app signature verified; the installer
 signature and DMG checksum also passed verification.
+
+## Staged in-app updates: 26.9.0-reconnect.4
+
+The Settings menu now checks GitHub releases and downloads an update only after user action.
+GitHub asset digests authenticate the downloaded manifest/archive within the HTTPS GitHub
+repository trust boundary. This is not an independent publisher-signature scheme.
+The main app verifies checksums, identity, version and signature before persisting a pending
+update. It stays open until the user restarts or normally quits. A separate helper waits on
+a kernel process-exit event, revalidates the payload, and uses the installer transaction.
+
+Twenty-one automated checks cover compatibility, same-version patch replacement, data
+sentinel preservation, rejection of corrupt/missing/older/incorrect-identity payloads,
+and the app/helper sandbox signing policy. A fault-injected final signature check verified
+that the transaction restores the previous app after replacement and removes staging.
+The external helper is separately signed without sandbox entitlements; the main app retains
+its sandbox and existing data identity. Both helpers compile for arm64 and x86_64.
+
+A real in-app download and restart on the owner's Mac is pending at publication.
+Administrator elevation, app-data access consent on other Macs, OS logout/shutdown timing,
+Intel runtime, and clean second-Mac end-to-end updating remain unverified.

@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import plistlib
 import shutil
+import shlex
 import subprocess
 import tempfile
 import unittest
@@ -71,6 +72,27 @@ class InstallTransactionTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256((backups[0] / relative).read_bytes()).hexdigest(), old_hash)
         self.assertEqual(hashlib.sha256((self.target / relative).read_bytes()).hexdigest(), self.helper)
         self.assertEqual(self.chat_data.read_text(), 'do not touch')
+
+    def test_final_verification_failure_restores_previous_app(self):
+        wrapper = self.parent / 'verify-signature'
+        wrapper.write_text(
+            '#!/bin/sh\n'
+            'for arg do\n'
+            f'    if [ "$arg" = {shlex.quote(str(self.target))} ]; then exit 1; fi\n'
+            'done\n'
+            'exec /usr/bin/codesign "$@"\n'
+        )
+        wrapper.chmod(0o755)
+        script = self.parent / 'install-with-failed-final-check.sh'
+        script.write_text(SCRIPT.read_text().replace('/usr/bin/codesign', shlex.quote(str(wrapper))))
+        result = subprocess.run(['/bin/sh', str(script), str(self.source), str(self.target),
+                                 self.exe, self.helper, self.version, self.build],
+                                capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Previous application restored.', result.stderr)
+        self.assertEqual((self.target / 'Contents/preserve.txt').read_text(), 'original app sentinel')
+        self.assertEqual(self.chat_data.read_text(), 'do not touch')
+        self.assertFalse(list(self.parent.glob('.KakaoTalk-install-*.app')))
 
     def test_wrong_payload_hash_does_not_replace_app(self):
         result = self.run_install(executable='0' * 64)

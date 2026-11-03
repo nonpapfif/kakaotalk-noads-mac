@@ -1,4 +1,5 @@
 #import <Cocoa/Cocoa.h>
+#import "AppUpdater.h"
 #import <objc/message.h>
 #import <objc/runtime.h>
 
@@ -298,6 +299,9 @@ static BOOL InstallLoginHook(void) {
     id windowController = SendObject(main, @"mainWindowController");
     NSWindow *window = SendObject(windowController, @"window");
     if (![window isKindOfClass:NSWindow.class]) return;
+    id mainView = SendObject(windowController, @"mainViewController");
+    NSMenu *settingsMenu = SendObject(mainView, @"miscMenu");
+    [[KakaoTalkAppUpdater sharedUpdater] attachToMenu:settingsMenu];
     NSView *content = window.contentView;
     if (!content) return;
     NSButton *bell = FindNativeSidebarButton(content, @"Notifications");
