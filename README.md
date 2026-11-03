@@ -18,7 +18,7 @@ Download **one file** using this permanent link. It follows the latest published
    **Keep me logged in** enabled if needed.
 
 No Python, Xcode, Terminal commands, separate app ZIP, or additional network download is
-required on the destination Mac. A [ZIP of the same installer](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/download/v26.9.0-reconnect.6/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.zip)
+required on the destination Mac. A [ZIP of the same installer](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/download/v26.9.0-reconnect.7/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.zip)
 is also available. Extract it before opening the installer.
 
 **First-launch approval:** these builds are ad-hoc signed, not Kakao-signed or
@@ -28,7 +28,7 @@ KakaoTalk itself. The installer does not disable Gatekeeper or remove quarantine
 An organization-managed Mac may enforce additional restrictions.
 
 Checksums and the standalone app ZIP are on the
-[release page](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/tag/v26.9.0-reconnect.6).
+[release page](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/tag/v26.9.0-reconnect.7).
 
 ## What the installer does
 
@@ -115,6 +115,26 @@ shows **Already connected** without starting another login. The overlay uses the
 mute popup's sRGB gray (81, 81, 81) and alpha (224/255). The icon uses a 1.4-point stroke
 and a 0.3-point optical shift to the right.
 No background polling or automatic takeover is added.
+
+### Manual Hold mode
+
+When a native session-kickout signal or the observed idle disconnect (reason 0) arrives,
+the app keeps its current window and enters **Hold**. An orange dot marks the reconnect
+icon; its tooltip and Session menu explain that it is disconnected. An unknown disconnect
+is not labeled as another desktop login. Hold is not a live server connection.
+
+Only the reconnect button or its Session menu action starts this helper's reconnect flow.
+Bringing the window forward, typing, sending, and waiting do not trigger a reconnect.
+The one-argument native auto-login entry and LPTokenManager.refreshToken are suppressed
+while Hold is active, except during an explicit reconnect request. Other authentication
+failures and explicit logout retain their normal handlers. Successful login clears Hold
+and refreshes existing chat models. Initial app launch/sign-in is still a native login flow;
+Hold is a running-session state and is not persisted across app restarts.
+
+Native send controls are not intercepted; attempting to send while on Hold can still show
+a delivery error. Reconnect before sending. The server may still close a connection later;
+this release preserves the UI and adds manual recovery, not uninterrupted connectivity.
+The role of periodic authentication in two-desktop interference is still under investigation.
 
 Another desktop may be logged out. Its unmodified auto-recovery can take the session back.
 Using this build on both Macs avoids that specific automatic-recovery path; two-Mac use of

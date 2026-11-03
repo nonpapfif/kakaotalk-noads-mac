@@ -155,3 +155,22 @@ The native accessibility window and button remained the same between Download Up
 and Restart Now, and the ready layout was inspected visually. Both architectures compile.
 The owner's main app received the UI change and passed signature verification. The
 previously verified download/validation/replacement protocol is unchanged.
+
+## Manual Hold: 26.9.0-reconnect.7
+
+Sanitized events showed an idle disconnect with reason 0 changing native authentication
+from logged-in to logged-out. The guarded candidate retained the authenticated UI on that
+path. The owner confirmed manual recovery and message delivery afterward. A later network
+disconnect still prevented delivery; preserving the UI alone did not preserve connectivity.
+
+The manual Hold candidate adds a native kickout observer, a visible orange status dot, and
+conditional suppression of the identified automatic login and token-refresh entry points.
+It does not reconnect on focus, typing, sending or elapsed time. Explicit logout and other
+authentication failures retain native handling. Hold is not persisted across restarts.
+Native send controls are unchanged and can show delivery errors while disconnected.
+
+Twenty-two automated tests pass, including twelve native disconnect/Hold policy assertions.
+The production release excludes the temporary sanitized event recorder. The owner received
+an instrumented candidate on Mac A. Two-Mac long-idle behavior with both machines on this
+version is still unverified. The periodic-authentication interference hypothesis is not
+confirmed. This release is not a fix for all delayed disconnections or simultaneous login.
