@@ -5,9 +5,26 @@
 @interface SessionSidebarButton : NSButton
 @property(nonatomic, strong) NSTrackingArea *hoverArea;
 @property(nonatomic) BOOL hovered;
+@property(nonatomic, strong) NSProgressIndicator *spinner;
+@property(nonatomic) BOOL busy;
+- (void)setBusy:(BOOL)busy;
 @end
 
 @implementation SessionSidebarButton
+- (void)setBusy:(BOOL)busy {
+    _busy = busy;
+    if (busy && !self.spinner) {
+        self.spinner = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(10, 10, 16, 16)];
+        self.spinner.style = NSProgressIndicatorStyleSpinning;
+        self.spinner.controlSize = NSControlSizeSmall;
+        self.spinner.usesThreadedAnimation = YES;
+        self.spinner.displayedWhenStopped = NO;
+        [self addSubview:self.spinner];
+    }
+    if (busy) [self.spinner startAnimation:nil];
+    else [self.spinner stopAnimation:nil];
+    self.needsDisplay = YES;
+}
 - (void)updateTrackingAreas {
     if (self.hoverArea) [self removeTrackingArea:self.hoverArea];
     self.hoverArea = [[NSTrackingArea alloc] initWithRect:NSZeroRect
@@ -51,6 +68,7 @@
         [[NSColor colorWithSRGBRed:channel green:channel blue:channel alpha:background] setFill];
         [[NSBezierPath bezierPathWithOvalInRect:self.bounds] fill];
     }
+    if (self.busy) return;
     NSBezierPath *path = [NSBezierPath bezierPath];
     [path moveToPoint:NSMakePoint(25.2, 19.2)];
     [path curveToPoint:NSMakePoint(18, 26.4) controlPoint1:NSMakePoint(25.2, 23.176)
@@ -63,11 +81,11 @@
     [path moveToPoint:NSMakePoint(19, 9)];
     [path lineToPoint:NSMakePoint(22, 12)];
     [path lineToPoint:NSMakePoint(19, 15)];
-    path.lineWidth = 1.3;
+    path.lineWidth = 1.4;
     path.lineCapStyle = NSLineCapStyleRound;
     path.lineJoinStyle = NSLineJoinStyleRound;
     NSAffineTransform *scale = [NSAffineTransform transform];
-    [scale translateXBy:NSWidth(self.bounds) / 2 yBy:NSHeight(self.bounds) / 2];
+    [scale translateXBy:NSWidth(self.bounds) / 2 + 0.3 yBy:NSHeight(self.bounds) / 2];
     [scale scaleXBy:NSWidth(self.bounds) / 36 * 0.90 yBy:NSHeight(self.bounds) / 36 * 0.90];
     [scale translateXBy:-18 yBy:-18];
     [path transformUsingAffineTransform:scale];
@@ -158,6 +176,18 @@ static NSUInteger RebindOpenChatModels(id core) {
     return updated;
 }
 
+@interface SessionReconnectFeedback : NSView
+@end
+@implementation SessionReconnectFeedback
+- (void)drawRect:(NSRect)dirtyRect {
+    (void)dirtyRect;
+    [[NSColor colorWithSRGBRed:81.0 / 255 green:81.0 / 255 blue:81.0 / 255
+                        alpha:224.0 / 255] setFill];
+    [[NSBezierPath bezierPathWithRoundedRect:self.bounds xRadius:14 yRadius:14] fill];
+}
+- (NSView *)hitTest:(NSPoint)point { (void)point; return nil; }
+@end
+
 @interface SessionReconnectController : NSObject
 @property(nonatomic, strong) NSMenuItem *status;
 @property(nonatomic, strong) NSMenuItem *button;
@@ -166,11 +196,18 @@ static NSUInteger RebindOpenChatModels(id core) {
 @property(nonatomic) BOOL awaitingConnectionEvent;
 @property(nonatomic) BOOL loginHookReady;
 @property(nonatomic, strong) NSDate *lastRequest;
+@property(nonatomic) BOOL reconnecting;
+@property(nonatomic, strong) SessionReconnectFeedback *feedback;
+@property(nonatomic, strong) NSTextField *feedbackLabel;
+@property(nonatomic, strong) NSProgressIndicator *feedbackSpinner;
+@property(nonatomic) NSUInteger feedbackGeneration;
 - (void)install;
 - (void)ensureMenu;
 - (void)attachSidebarButton;
 - (void)setReconnectEnabled:(BOOL)enabled;
 - (void)showStatus:(NSString *)message;
+- (void)showFeedback:(NSString *)message spinning:(BOOL)spinning;
+- (void)finishFeedback:(NSString *)message;
 - (void)reconnect:(id)sender;
 - (void)didConnectCore:(id)core;
 @end
@@ -231,7 +268,7 @@ static BOOL InstallLoginHook(void) {
             if (self.lastRequest) {
                 id core = SendObject(NSClassFromString(@"MacTalkCore"), @"core");
                 id auth = SendObject(core, @"auth");
-                [self setReconnectEnabled:!SendBool(auth, @"doingAutoLogin")];
+                [self setReconnectEnabled:!self.reconnecting && !SendBool(auth, @"doingAutoLogin")];
             }
         }];
 }
@@ -282,6 +319,7 @@ static BOOL InstallLoginHook(void) {
     self.sidebarButton.frame = SidebarReconnectFrame(parent, bell, settings);
     self.sidebarButton.autoresizingMask = NSViewMaxXMargin |
         (parent.isFlipped ? NSViewMinYMargin : NSViewMaxYMargin);
+    [(SessionSidebarButton *)self.sidebarButton setBusy:self.reconnecting];
     self.sidebarButton.needsDisplay = YES;
     NSDictionary *layout = @{
         @"native_button_found": @(bell != nil),
@@ -310,43 +348,121 @@ static BOOL InstallLoginHook(void) {
     self.sidebarButton.toolTip = [@"Reconnect on This Mac\n" stringByAppendingString:message];
 }
 
+- (void)showFeedback:(NSString *)message spinning:(BOOL)spinning {
+    NSUInteger generation = ++self.feedbackGeneration;
+    id core = SendObject(NSClassFromString(@"MacTalkCore"), @"core");
+    NSWindow *window = SendObject(SendObject(SendObject(core, @"main"),
+                                            @"mainWindowController"), @"window");
+    if (![window isKindOfClass:NSWindow.class] || !window.contentView) return;
+    NSView *content = window.contentView;
+    if (!self.feedback) {
+        self.feedback = [[SessionReconnectFeedback alloc] initWithFrame:NSMakeRect(0, 0, 190, 84)];
+        self.feedback.appearance = [NSAppearance appearanceNamed:NSAppearanceNameVibrantDark];
+        self.feedback.wantsLayer = YES;
+        self.feedback.layer.cornerRadius = 14;
+        self.feedback.layer.masksToBounds = YES;
+        self.feedbackLabel = [NSTextField wrappingLabelWithString:@""];
+        self.feedbackLabel.alignment = NSTextAlignmentCenter;
+        self.feedbackLabel.preferredMaxLayoutWidth = 170;
+        self.feedbackLabel.maximumNumberOfLines = 2;
+        self.feedbackLabel.font = [NSFont systemFontOfSize:13 weight:NSFontWeightMedium];
+        self.feedbackLabel.textColor = NSColor.whiteColor;
+        [self.feedback addSubview:self.feedbackLabel];
+        self.feedbackSpinner = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(85, 46, 20, 20)];
+        self.feedbackSpinner.style = NSProgressIndicatorStyleSpinning;
+        self.feedbackSpinner.usesThreadedAnimation = YES;
+        self.feedbackSpinner.displayedWhenStopped = NO;
+        [self.feedback addSubview:self.feedbackSpinner];
+    }
+    self.feedback.frame = NSMakeRect((NSWidth(content.bounds) - 190) / 2,
+                                     (NSHeight(content.bounds) - 84) / 2, 190, 84);
+    self.feedback.autoresizingMask = NSViewMinXMargin | NSViewMaxXMargin |
+                                     NSViewMinYMargin | NSViewMaxYMargin;
+    self.feedbackLabel.stringValue = message;
+    CGFloat textHeight = MIN(36, MAX(17, ceil(self.feedbackLabel.fittingSize.height)));
+    CGFloat groupHeight = textHeight + (spinning ? 28 : 0);
+    CGFloat textY = (NSHeight(self.feedback.bounds) - groupHeight) / 2;
+    self.feedbackLabel.frame = NSMakeRect(10, textY, 170, textHeight);
+    self.feedbackSpinner.frame = NSMakeRect(85, textY + textHeight + 8, 20, 20);
+    if (spinning) [self.feedbackSpinner startAnimation:nil];
+    else [self.feedbackSpinner stopAnimation:nil];
+    [content addSubview:self.feedback positioned:NSWindowAbove relativeTo:nil];
+    if (!spinning) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC),
+                       dispatch_get_main_queue(), ^{
+            if (self.feedbackGeneration == generation && !self.reconnecting) {
+                [self.feedback removeFromSuperview];
+            }
+        });
+    }
+}
+
+- (void)finishFeedback:(NSString *)message {
+    self.reconnecting = NO;
+    [(SessionSidebarButton *)self.sidebarButton setBusy:NO];
+    [self setReconnectEnabled:YES];
+    [self showFeedback:message spinning:NO];
+}
+
 - (void)reconnect:(id)sender {
     (void)sender;
+    if (self.reconnecting) return;
     if (self.lastRequest && -[self.lastRequest timeIntervalSinceNow] < 5) return;
     id core = SendObject(NSClassFromString(@"MacTalkCore"), @"core");
     id auth = SendObject(core, @"auth");
+    if (SendBool(SendObject(core, @"loco"), @"loggedIn")) {
+        [self showStatus:@"Already connected. No login request was sent."];
+        [self showFeedback:@"Already connected" spinning:NO];
+        return;
+    }
     SEL action = NSSelectorFromString(@"autoLoginWithForce:");
     if (!auth || ![auth respondsToSelector:action]) {
         [self showStatus:@"The app's login controller is not ready."];
+        [self showFeedback:@"Reconnect unavailable" spinning:NO];
         return;
     }
     if (SendBool(auth, @"doingAutoLogin") || SendBool(auth, @"isTryingToLogin")) {
         [self showStatus:@"A login request is already running. Wait for it to finish."];
+        [self showFeedback:@"Login already in progress" spinning:NO];
         return;
     }
     if (!SendBool(auth, @"canAutoLogin")) {
         [self showStatus:@"Saved login is unavailable. Sign in manually with auto-login enabled."];
+        [self showFeedback:@"Sign in first" spinning:NO];
         return;
     }
     if (!self.loginHookReady) {
         [self showStatus:@"The connection event hook is unavailable. No request was sent."];
+        [self showFeedback:@"Reconnect unavailable" spinning:NO];
         return;
     }
     self.awaitingConnectionEvent = YES;
+    self.reconnecting = YES;
+    [(SessionSidebarButton *)self.sidebarButton setBusy:YES];
+    [self showFeedback:@"Reconnecting..." spinning:YES];
     self.lastRequest = [NSDate date];
     [self setReconnectEnabled:NO];
     [self showStatus:@"Requested login once. Check message delivery; the other Mac may log out."];
     ((void (*)(id, SEL, BOOL))objc_msgSend)(auth, action, YES);
+    NSDate *request = self.lastRequest;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-        [self setReconnectEnabled:!SendBool(auth, @"doingAutoLogin")];
+        if (self.lastRequest != request || !self.reconnecting) return;
+        if (SendBool(SendObject(core, @"loco"), @"loggedIn")) {
+            [self didConnectCore:core];
+            return;
+        }
         if (SendBool(auth, @"doingAutoLogin")) {
             [self showStatus:@"Login is still running. No additional request has been sent."];
-        } else {
-            if (self.awaitingConnectionEvent) {
-                [self showStatus:@"No successful connection event yet. Existing windows are unchanged."];
-            }
-
+        } else if (self.awaitingConnectionEvent) {
+            [self showStatus:@"Waiting for a successful connection event. No additional request was sent."];
+            [self showFeedback:@"Waiting for connection..." spinning:YES];
         }
+    });
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 60 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+        if (self.lastRequest != request || !self.reconnecting) return;
+        self.awaitingConnectionEvent = NO;
+        [self showStatus:@"Reconnect timed out. No additional request has been sent."];
+        [self finishFeedback:@"Reconnect timed out"];
     });
 }
 
@@ -355,6 +471,7 @@ static BOOL InstallLoginHook(void) {
     self.awaitingConnectionEvent = NO;
     if (-[self.lastRequest timeIntervalSinceNow] > 60) {
         [self showStatus:@"The request expired. Existing windows were not refreshed."];
+        [self finishFeedback:@"Reconnect timed out"];
         return;
     }
     SEL recover = NSSelectorFromString(@"locoClientDidRecover");
@@ -362,6 +479,7 @@ static BOOL InstallLoginHook(void) {
     SEL reload = NSSelectorFromString(@"reloadAllChatMessage:");
     if (![core respondsToSelector:recover] || ![main respondsToSelector:reload]) {
         [self showStatus:@"Connected, but the app's window refresh methods are unavailable."];
+        [self finishFeedback:@"Connected. Reopen chats."];
         return;
     }
     RebindOpenChatModels(core);
@@ -373,8 +491,8 @@ static BOOL InstallLoginHook(void) {
         if ([windows respondsToSelector:settings]) {
             ((void (*)(id, SEL))objc_msgSend)(windows, settings);
         }
-        [self setReconnectEnabled:YES];
         [self showStatus:@"Connected. Open chats refreshed."];
+        [self finishFeedback:@"Connected"];
     });
 }
 @end

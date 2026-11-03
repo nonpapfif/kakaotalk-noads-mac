@@ -39,7 +39,7 @@ def build(app: Path, output: Path) -> None:
     resources = contents / 'Resources'
     resources.mkdir(parents=True)
     (contents / 'MacOS').mkdir()
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parents[1]
     shutil.copy(root / 'installer/install-app.sh', resources / 'install-app.sh')
     archive = resources / 'KakaoTalk.zip'
     subprocess.run(['ditto', '-c', '-k', '--norsrc', '--keepParent', str(app), str(archive)], check=True)

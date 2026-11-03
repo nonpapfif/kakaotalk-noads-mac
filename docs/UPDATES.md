@@ -27,10 +27,10 @@ and permission/UI design. It must only deliver reviewed releases, not patch unkn
 - `compatibility/profiles/<version>-<build>.json`: official source identity/hash,
   architectures, original/replacement bytes, required selector names, stable output identity,
   approval for building, and the actual scope of functional validation.
-- `inspect_update.py`: read-only source/signature/architecture and known-profile inspection.
-- `build_reconnect.py`: selects the exact profile and refuses unknown versions/hashes,
+- `tools/inspect_update.py`: read-only source/signature/architecture and known-profile inspection.
+- `tools/build_reconnect.py`: selects the exact profile and refuses unknown versions/hashes,
   overlapping patches, missing selectors, unexpected architectures and changed original bytes.
-- `build_installer.py`: reads the reviewed app version and produces versioned installer
+- `tools/build_installer.py`: reads the reviewed app version and produces versioned installer
   filenames and a payload manifest. It contains no fixed 26.9 payload version.
 - `installer/Installer.swift` and `install-app.sh`: verify the payload version/build from that
   signed manifest. The GUI refuses a version/build downgrade before quitting the installed app.
@@ -47,7 +47,7 @@ Never set it merely to bypass an unsupported-version error.
 2. Inspect the copy on a development Mac:
 
    ```sh
-   python3 inspect_update.py --app /path/to/new/official/KakaoTalk.app --output /tmp/candidate.json
+   python3 -m tools.inspect_update --app /path/to/new/official/KakaoTalk.app --output /tmp/candidate.json
    ```
 
    An unknown version/hash must report `build_allowed: false`. The tool reads app files,
@@ -59,7 +59,7 @@ Never set it merely to bypass an unsupported-version error.
 4. After static review approves an isolated build, build the candidate:
 
    ```sh
-   python3 build_reconnect.py --source /path/to/new/official/KakaoTalk.app --output /tmp/KakaoTalk.app
+   python3 -m tools.build_reconnect --source /path/to/new/official/KakaoTalk.app --output /tmp/KakaoTalk.app
    ```
 
    The current Mach-O injector and entitlement reader expect the supported universal format.
@@ -74,7 +74,7 @@ Never set it merely to bypass an unsupported-version error.
 
    ```sh
    KAKAO_TEST_APP=/tmp/KakaoTalk.app python3 -m unittest discover -s tests -v
-   python3 build_installer.py --app /tmp/KakaoTalk.app --output /tmp/new-kakao-installer
+   python3 -m tools.build_installer --app /tmp/KakaoTalk.app --output /tmp/new-kakao-installer
    ```
 
 8. Publish a new GitHub release only after functional review. Upload the DMG, ZIP and

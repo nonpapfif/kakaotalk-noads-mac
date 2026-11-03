@@ -77,6 +77,10 @@ store and refreshes open chats after a successful native connection event.
 The sidebar button shares the original sidebar parent, 36-point hit area, center alignment,
 and 40-point spacing. Its custom vector is scaled to 90% inside that area. Normal, hover,
 pressed, active/inactive, and light/dark colors follow the original sidebar asset values.
+A spinner and inline status overlay show request progress. An already-connected client
+shows **Already connected** without starting another login. The overlay uses the original
+mute popup's sRGB gray (81, 81, 81) and alpha (224/255). The icon uses a 1.4-point stroke
+and a 0.3-point optical shift to the right.
 No background polling or automatic takeover is added.
 
 Another desktop may be logged out. Its unmodified auto-recovery can take the session back.
@@ -103,12 +107,13 @@ and disables library validation for the added helper. Official signing cannot be
 
 ## Build from source
 
+Run the commands below from the repository root.
 Building is optional. Development requires macOS, Command Line Tools, and Python 3.9+.
 The destination user only needs the prebuilt installer.
 
 ```sh
-python3 build_reconnect.py --source /path/to/official/KakaoTalk.app --output /tmp/KakaoTalk.app
-python3 build_installer.py --app /tmp/KakaoTalk.app --output /tmp/kakao-installer
+python3 -m tools.build_reconnect --source /path/to/official/KakaoTalk.app --output /tmp/KakaoTalk.app
+python3 -m tools.build_installer --app /tmp/KakaoTalk.app --output /tmp/kakao-installer
 ```
 
 The source must be the unmodified official **26.9.0 build 2006** executable with SHA-256
@@ -116,7 +121,7 @@ The source must be the unmodified official **26.9.0 build 2006** executable with
 The builder checks the hash and original bytes at every patch site. It copies no user data
 and removes the copied App Store receipt. Do not reuse offsets on another version.
 
-`patch_kakaotalk.py` remains available for the historical ad-only build. Its output uses
+`tools/patch_kakaotalk.py` remains available for the historical ad-only build. Its output uses
 the older NoAds identity and does not include reconnect. The prebuilt installer uses the
 owner-tested reconnect binary; a fresh end-to-end build from the official source has not
 been revalidated for this release.
@@ -129,9 +134,21 @@ Keep all Library data. Update the Dock and default URL handlers to the restored 
 
 ## Updating to future KakaoTalk versions
 
-See [UPDATES.md](UPDATES.md) for the version-profile maintenance workflow and acceptance
+See [update maintenance guide](docs/UPDATES.md) for the version-profile maintenance workflow and acceptance
 checklist. Only the reviewed 26.9.0/build 2006 source is currently approved. Future versions
 must get their own reviewed profile and functional validation before release.
 The tools refuse unknown versions and hashes. The next installer can use its own payload
 version, keep the same data identity, and refuse downgrades. This does not add an automatic
 in-app updater or guarantee compatibility with an untested official release.
+
+## Repository layout
+
+- `docs/`: installation handoff, validation records, and update maintenance.
+- `tools/`: Python build and read-only inspection commands; run with `python3 -m tools.<name>`.
+- `reconnect/`: native reconnect helper, vector assets, and Mach-O load-command injection.
+- `installer/`: native installer UI and application replacement transaction.
+- `compatibility/`: source validation and reviewed version profiles.
+- `tests/`: compatibility and disposable installer transaction checks.
+
+See the [installation handoff](docs/HANDOFF.md) and [validation record](docs/VALIDATION.md).
+The default development branch is `master`.

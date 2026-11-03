@@ -69,3 +69,16 @@ The owner confirmed that hovering the reconnect icon now shows its background wh
 KakaoTalk window is behind another app. Reconnect behavior and data identity were unchanged.
 The updated installer also includes the version-profile-aware payload metadata introduced
 by the maintenance tooling. Older release assets remain unchanged.
+
+## Reconnect progress and visual feedback
+
+The owner confirmed both already-connected feedback and session takeover feedback.
+The native `BCLocoClient.loggedIn` state avoids waiting for a new login event when the
+client is already connected. Request-scoped callbacks ignore stale requests, and a
+60-second deadline ends the progress indicator without retrying.
+
+The owner approved the centered overlay text/spinner, 1.4-point icon stroke, 0.3-point
+optical adjustment, and matching popup tone. The overlay uses a custom translucent view
+with sRGB (81, 81, 81), alpha 224/255, sampled from the original mute popup image.
+The helper compiled for both architectures, and the installed app passed code-signature
+verification. These source changes are newer than the published reconnect.2 assets.

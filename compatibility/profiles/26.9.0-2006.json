@@ -96,7 +96,8 @@
     "reloadAllChatRoomsSettings",
     "mainWindowController",
     "nest",
-    "sharedInstance"
+    "sharedInstance",
+    "loggedIn"
   ],
   "validation_scope": [
     "owner-tested Apple Silicon app",

@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import tempfile
 
-import patch_kakaotalk as base
+from tools import patch_kakaotalk as base
 from compatibility import BUNDLE_ID, load_profile, require_source
 from reconnect.inject_load_command import inject
 
@@ -51,7 +51,7 @@ def build(source: Path, output: Path) -> None:
         patched[offset:offset + len(expected)] = replacement
         changes.append({'offset': hex(offset), 'before': before, 'after': after, 'purpose': purpose})
     patched = inject(bytes(patched), '@executable_path/../Frameworks/SessionReconnect.dylib')
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parents[1]
     with tempfile.TemporaryDirectory(prefix='kakao-reconnect-build-') as temporary:
         directory = Path(temporary)
         helper = directory / 'SessionReconnect.dylib'
