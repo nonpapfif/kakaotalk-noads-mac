@@ -139,4 +139,9 @@ The helper now receives a Launch.plist document through NSWorkspace.openURLs and
 NSApplicationDelegate document-open callback. A native launch probe delivered the document
 and reached staged-app validation; the intentionally missing app was rejected before
 replacement. Twenty-one automated checks also pass against the reconnect.5 payload.
-The full sandboxed download/restart path is awaiting the owner's retry at publication.
+The owner's retry completed the real sandboxed download and restart flow. The installed
+app reports reconnect.5 and matches the published executable/helper SHA-256 values. Its
+deep strict signature check passed, the /Applications process relaunched, the pending
+pointer was removed, and the updater report records the previous-app backup and no
+failures for any of the four default URL handlers. No chat or login data was copied or
+deleted by the updater. Clean second-Mac and administrator-elevation coverage remain pending.
