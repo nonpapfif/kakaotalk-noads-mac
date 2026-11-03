@@ -14,6 +14,30 @@ Follow the complete procedure below. Building from source is optional, not an in
 The archive contains `KakaoTalk.app`, without chat history, login sessions, or the original
 App Store receipt. Sign in on the destination Mac. First launch on another Mac is unverified.
 
+### Archive layout and installer paths
+
+The `v26.9.0-patch.1` ZIP contains a wrapper directory:
+
+```text
+kakaotalk-release-20261103/
+  KakaoTalk.app/
+    Contents/Info.plist
+  INSTALL.md
+  HANDOFF.md
+```
+
+After extracting into a temporary directory, the application is at
+`<extraction-directory>/kakaotalk-release-20261103/KakaoTalk.app`, not directly at
+`<extraction-directory>/KakaoTalk.app`. Check that `Contents/Info.plist` exists before reading
+its bundle identifier. A missing plist key may indicate an incorrect extraction path, not an
+incorrect app identity. If discovering the app dynamically, match `KakaoTalk.app` or `*.app`;
+the literal pattern `.app` does not match `KakaoTalk.app`. Require exactly one candidate and
+validate its identifier, version, and signature before touching the installed app.
+
+Safari may automatically extract downloaded ZIP files. Checksum verification requires the
+original ZIP bytes and the matching SHA-256 file, not just an extracted application directory.
+Do not reconstruct a ZIP and compare it with the published checksum.
+
 ## Supported source
 
 - KakaoTalk 26.9.0, build 2006.
@@ -75,7 +99,9 @@ Do not change the patched identifier to the official identifier. Storage depends
 1. Download both release assets linked above. In their download directory, run
    `shasum -a 256 -c KakaoTalk-NoAds-Mac-26.9.0.sha256` and require an `OK` result.
 2. Extract the ZIP using a macOS-compatible archive utility that preserves app symlinks.
-   Verify the extracted app identity, version 26.9.0 / build 2006, and signature before removal.
+   Use the nested app path shown under Archive layout and installer paths. Verify that its
+   `Contents/Info.plist` exists, then verify the app identity, version 26.9.0 / build 2006,
+   and signature before removal.
 3. Check whether the existing app contains local history that the user needs. Preserve it;
    separate patched storage does not automatically inherit official local history.
 4. Quit both apps without logging out. If the installed app is the official app, move only
