@@ -80,9 +80,12 @@ Never set it merely to bypass an unsupported-version error.
 
 8. Set the profile's `patch_release` to the new reconnect release tag. The source builder
    embeds it as `KakaoTalkPatchRelease`. Publish only after functional review. Upload the
-   DMG, installer/app ZIPs, `Update.json`, update ZIP and checksums. The update manifest
-   must match the release tag and its GitHub asset digests. Point the README to that release. Do not replace old release
-   assets silently. Keep the previous version available for recovery.
+   versioned DMG, `KakaoTalk-Installer.dmg`, its `.sha256`, installer/app ZIPs,
+   `Update.json`, update ZIP and checksums. The update manifest must match the release tag
+   and its GitHub asset digests. For a reviewed public release, publish it as non-prerelease
+   and mark it Latest. The permanent README DMG URL then follows it automatically, even
+   when the upstream app version changes. Draft/prerelease candidates must not become the
+   Latest public download. Do not replace old versioned assets silently; retain recovery versions.
 
 ## Functional acceptance checklist
 

@@ -6,9 +6,9 @@ simultaneous desktop sessions.
 
 ## Download and install
 
-Download **one file**:
+Download **one file** using this permanent link. It follows the latest published release:
 
-[Download the self-contained installer DMG](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/download/v26.9.0-reconnect.6/KakaoTalk-NoAds-Reconnect-Installer-26.9.0.dmg)
+[Download the self-contained installer DMG](https://github.com/nonpapfif/kakaotalk-noads-reconnect/releases/latest/download/KakaoTalk-Installer.dmg)
 
 1. Open the DMG and double-click **Install KakaoTalk**.
 2. Finish drafts, then click **Update KakaoTalk** for an existing reconnect build,

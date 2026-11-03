@@ -88,6 +88,11 @@ def build(app: Path, output: Path) -> None:
         subprocess.run(['hdiutil', 'create', '-srcfolder', temporary, '-size',
                         f'{size_mib}m', '-volname', 'KakaoTalk Installer ' + release_tag,
                         '-format', 'UDZO', str(dmg)], check=True)
+    latest_dmg = output / 'KakaoTalk-Installer.dmg'
+    shutil.copy(dmg, latest_dmg)
+    latest_dmg.with_suffix('.sha256').write_text(
+        digest(latest_dmg) + '  ' + latest_dmg.name + '\n'
+    )
     update_zip = output / f'KakaoTalk-NoAds-Reconnect-Update-{version}.zip'
     shutil.copy(archive, update_zip)
     update_manifest = {
@@ -101,7 +106,7 @@ def build(app: Path, output: Path) -> None:
     update_json.write_text(json.dumps(update_manifest, indent=2) + '\n')
     (output / 'SHA256SUMS').write_text(''.join(
         digest(path) + '  ' + path.name + '\n'
-        for path in (dmg, zip_path, update_zip, update_json)
+        for path in (dmg, latest_dmg, zip_path, update_zip, update_json)
     ))
     print(f'Built {installer}, {zip_path}, and {dmg}')
 
