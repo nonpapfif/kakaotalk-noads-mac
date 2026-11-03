@@ -128,3 +128,15 @@ its sandbox and existing data identity. Both helpers compile for arm64 and x86_6
 A real in-app download and restart on the owner's Mac is pending at publication.
 Administrator elevation, app-data access consent on other Macs, OS logout/shutdown timing,
 Intel runtime, and clean second-Mac end-to-end updating remain unverified.
+
+## Sandbox launch-document fix: 26.9.0-reconnect.5
+
+The owner's real download of reconnect.4 reached the verified pending-update state.
+Its restart helper then received no command-line arguments through the sandboxed
+NSWorkspace launch path and stopped before changing the app. The old app was reopened.
+
+The helper now receives a Launch.plist document through NSWorkspace.openURLs and the
+NSApplicationDelegate document-open callback. A native launch probe delivered the document
+and reached staged-app validation; the intentionally missing app was rejected before
+replacement. Twenty-one automated checks also pass against the reconnect.5 payload.
+The full sandboxed download/restart path is awaiting the owner's retry at publication.

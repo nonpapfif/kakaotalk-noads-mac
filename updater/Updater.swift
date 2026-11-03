@@ -32,14 +32,22 @@ final class UpdateDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+    }
+    func application(_ application: NSApplication, open urls: [URL]) {
         do {
-            let args = ProcessInfo.processInfo.arguments
-            guard args.count == 5, args[1] == "--parent-pid", args[3] == "--staging",
-                  let pid = Int32(args[2]), pid > 1 else {
+            guard urls.count == 1, urls[0].lastPathComponent == "Launch.plist",
+                  let launch = try PropertyListSerialization.propertyList(
+                    from: Data(contentsOf: urls[0]), format: nil) as? [String: String],
+                  let path = launch["directory"], let rawPID = launch["parent_pid"],
+                  let pid = Int32(rawPID), pid > 1 else {
                 throw NSError(domain: "KakaoTalkUpdater", code: 1,
-                              userInfo: [NSLocalizedDescriptionKey: "Invalid updater arguments."])
+                              userInfo: [NSLocalizedDescriptionKey: "Invalid updater launch document."])
             }
-            directory = URL(fileURLWithPath: args[4]).standardizedFileURL
+            directory = URL(fileURLWithPath: path).standardizedFileURL
+            guard urls[0].deletingLastPathComponent().standardizedFileURL == directory else {
+                throw NSError(domain: "KakaoTalkUpdater", code: 1,
+                              userInfo: [NSLocalizedDescriptionKey: "Unexpected update launch path."])
+            }
             lockDescriptor = open(directory.appendingPathComponent("Update.lock").path,
                                   O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR)
             guard lockDescriptor >= 0 else {

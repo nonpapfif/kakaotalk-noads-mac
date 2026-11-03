@@ -56,7 +56,7 @@ def build(app: Path, output: Path) -> None:
         'CFBundleIdentifier': 'local.elsholtzia.KakaoTalkNoAdsInstaller',
         'CFBundleName': 'Install KakaoTalk', 'CFBundleDisplayName': 'Install KakaoTalk',
         'CFBundleExecutable': 'Installer', 'CFBundlePackageType': 'APPL',
-        'CFBundleShortVersionString': '1.3.0', 'CFBundleVersion': '4',
+        'CFBundleShortVersionString': '1.3.1', 'CFBundleVersion': '5',
         'KakaoTalkPayloadVersion': version,
         'LSMinimumSystemVersion': profile['minimum_macos'], 'NSHighResolutionCapable': True,
     }

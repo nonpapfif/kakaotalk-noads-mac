@@ -17,7 +17,10 @@ def build(output: Path) -> None:
         'CFBundleIdentifier': 'local.elsholtzia.KakaoTalkUpdater',
         'CFBundleName': 'KakaoTalk Updater', 'CFBundleExecutable': 'Updater',
         'CFBundlePackageType': 'APPL', 'CFBundleShortVersionString': '1.0.0',
-        'CFBundleVersion': '1', 'LSMinimumSystemVersion': '13.0', 'LSUIElement': True,
+        'CFBundleVersion': '2', 'LSMinimumSystemVersion': '13.0', 'LSUIElement': True,
+        'CFBundleDocumentTypes': [{'CFBundleTypeName': 'KakaoTalk update launch',
+                                  'CFBundleTypeRole': 'Viewer',
+                                  'LSItemContentTypes': ['com.apple.property-list']}],
     }))
     shutil.copy(root / 'installer/install-app.sh', contents / 'Resources/install-app.sh')
     with tempfile.TemporaryDirectory(prefix='kakao-updater-build-') as temporary:

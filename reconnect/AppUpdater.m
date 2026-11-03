@@ -310,9 +310,17 @@ static void TerminateWithUpdate(id app, SEL selector, id sender) {
     NSWorkspaceOpenConfiguration *configuration = [NSWorkspaceOpenConfiguration configuration];
     configuration.activates = NO;
     configuration.createsNewApplicationInstance = YES;
-    configuration.arguments = @[@"--parent-pid", [NSString stringWithFormat:@"%d", getpid()],
-                                @"--staging", self.readyFolder.path];
-    [NSWorkspace.sharedWorkspace openApplicationAtURL:updater configuration:configuration
+    NSURL *launchURL = [self.readyFolder URLByAppendingPathComponent:@"Launch.plist"];
+    NSError *launchError = nil;
+    NSDictionary *launch = @{@"parent_pid": [NSString stringWithFormat:@"%d", getpid()],
+                              @"directory": self.readyFolder.path};
+    if (![launch writeToURL:launchURL error:&launchError]) {
+        self.helperLaunching = NO;
+        [self showError:launchError];
+        return;
+    }
+    [NSWorkspace.sharedWorkspace openURLs:@[launchURL] withApplicationAtURL:updater
+        configuration:configuration
         completionHandler:^(NSRunningApplication *app, NSError *error) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 self.helperLaunching = NO;

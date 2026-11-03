@@ -13,7 +13,7 @@ APP = os.environ.get('KAKAO_TEST_APP')
 ROOT = Path(__file__).resolve().parents[1]
 
 
-@unittest.skipUnless(APP, 'Set KAKAO_TEST_APP to a signed reconnect.4 app')
+@unittest.skipUnless(APP, 'Set KAKAO_TEST_APP to a signed updater-enabled reconnect app')
 class UpdateValidationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
