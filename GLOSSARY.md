@@ -19,6 +19,11 @@ The Managed MacBook carried outside the home and used on an external network. Th
 takes at most one MacBook outside at a time.
 _Avoid_: Every reachable peer, a second simultaneous outside MacBook
 
+**Away Reservation**:
+The Away MacBook's retained preference while its display is off or its session is locked,
+so home Macs remain on Hold. An explicit Manual Reconnect elsewhere can override it.
+_Avoid_: A continuously live connection, a home handoff on temporary lock
+
 **Open Mac**:
 A Managed Mac whose display is on and whose user session is unlocked. Recent input is not
 required for this status.
@@ -50,7 +55,8 @@ _Avoid_: Unconditional takeover of an Open Session Owner
 
 **Manual Reconnect**:
 An explicit user request to connect on a chosen Managed Mac, including a deliberate
-transfer away from another Open Session Owner.
+transfer away from another Open Session Owner or an Away MacBook. An accepted explicit
+selection takes priority over automatic home/away preferences.
 _Avoid_: Background recovery, automatic handoff
 
 **Owner Recovery**:

@@ -17,6 +17,11 @@ not acceptance criteria for this goal reset. Coordination must work across diffe
 networks. The owner takes at most one MacBook outside at a time. Home/external network
 recognition and coordination technology are still unselected.
 
+Selection priority is explicit Manual Reconnect, then Away MacBook preference, then
+protection of the existing home owner. Automatic input-recency selection applies only when
+selecting a replacement is allowed by those rules. An accepted manual selection must not
+be immediately undone by automatic Away MacBook acquisition or stale automatic recovery.
+
 ## Agreed behavior
 
 | Situation | Required behavior |
@@ -27,12 +32,14 @@ recognition and coordination technology are still unselected.
 | Exactly one Mac is Eligible, with no protected owner | Automatically select that Mac when peer state is known. |
 | Another home Mac opens or receives input while the home owner remains Open | Keep the existing owner. Explicit Manual Reconnect changes the selection. |
 | The sole Away MacBook is Open and Eligible on an external network | Give it priority over an Open home owner; home Macs must not automatically take the session back. |
-| Owner's display turns off or its session locks | Put the previous owner on Hold and automatically hand off to an Eligible Mac. |
+| Home owner's display turns off or its session locks | Put the previous owner on Hold and automatically hand off to an Eligible Mac. |
+| Away owner temporarily locks or turns its display off | Retain Away Reservation. Home Macs remain on Hold; the Away MacBook automatically recovers when Open again. |
 | Two Eligible Macs can receive an Automatic Handoff | Prefer the Mac with the most recent keyboard or mouse use. |
 | No Mac is Open | Put all Managed Macs on Hold. |
 | A Mac opens after all were on Hold | Automatically acquire the session if it is the only Eligible Mac and peer state is known. |
 | The Open owner temporarily loses Internet connectivity | Retain ownership and perform Automatic Login/Owner Recovery on the same Mac. Other Macs remain on Hold. |
-| Peer state is unknown | Defer automatic acquisition or handoff. Do not interpret missing contact as ownership release. |
+| Home Mac cannot establish peer presence | Defer automatic acquisition or handoff. Do not interpret missing contact as ownership release. |
+| Away MacBook cannot establish home-peer presence | Permit its automatic acquisition attempt as an explicit priority exception. Home Macs must not automatically take the session back. |
 | User normally quits the owner's app | Release ownership and hand off to another Eligible Mac. Do not automatically relaunch the app that was quit. |
 | App crashes or contact is abruptly lost | Do not infer normal ownership release from the missing contact. Apply Unknown Presence handling. |
 | Multiple Eligible Macs start with no established owner | Choose the Mac with the most recent keyboard or mouse use. If ordering cannot be established, wait for Manual Reconnect. |
@@ -46,8 +53,15 @@ evidence; no coordinator is selected by this policy. Keeping an owner distinct f
 connection is essential to the priority rule; see
 [ADR 0001](adr/0001-protect-the-open-session-owner.md).
 The Away MacBook is an accepted exception to home-owner protection; see
-[ADR 0002](adr/0002-prioritize-the-away-macbook.md). Its behavior while locked or closed,
-and priority relative to an explicit home-side Manual Reconnect, still need decisions.
+[ADR 0002](adr/0002-prioritize-the-away-macbook.md). Away Reservation preserves preference,
+not a requirement to keep a live connection while the display is off or the session locked.
+An explicit Manual Reconnect elsewhere can override the reservation. Ordinary home-side
+automatic handoff must not reverse the Away MacBook preference during a temporary lock.
+
+Unknown home-peer presence and an unreachable authoritative coordinator are different
+failure cases. The user accepted an Away MacBook exception for the former. Arbitration and
+failure behavior for the latter remain unselected; the priority exception does not by
+itself establish a shared order of concurrent manual requests.
 
 ## Automatic Login goal and evidence
 
@@ -113,16 +127,16 @@ candidate selection -> Owner Recovery -> conservative automatic behavior under U
 Presence -> normal app exit -> initial owner selection -> explicit request exceptions ->
 cross-network operation -> Away MacBook priority -> provisional completion criteria.
 Automatic Login is required; coverage of fully expired authentication remains unverified.
+Also settled: Away Reservation across temporary lock, explicit manual selection above
+Away MacBook preference, and Away MacBook acquisition despite unknown home-peer presence.
 
-The next interview round covers these decisions:
+Engineering fact finding for the next round:
 
-1. Away reservation: whether the home Macs remain on Hold when the Away MacBook locks or
-   turns its display off, instead of applying the previously agreed home handoff rule.
-2. Whether explicit home-side Manual Reconnect overrides Away MacBook priority, and how to
-   prevent immediate automatic takeover back to the Away MacBook afterward.
-3. Whether Away MacBook priority is an exception to conservative automatic acquisition
-   when home-peer presence is unknown. The existing Unknown Presence policy remains the
-   baseline until this exception is explicitly decided.
+1. Establish realistic cross-network coordination options and their deployment, signing,
+   and availability prerequisites before asking the user to select infrastructure scope.
+2. Determine the native saved-authentication cases that can recover without user action.
+3. Separate peer presence observations from ownership arbitration, including the evidence
+   required to preserve explicit selections and reject stale or concurrent requests.
 
 Further decisions remain before implementation:
 
