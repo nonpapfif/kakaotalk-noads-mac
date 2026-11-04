@@ -14,6 +14,11 @@ A Managed Mac whose display is on and whose user session is unlocked. Recent inp
 required for this status.
 _Avoid_: Awake Mac, running app, recently used Mac
 
+**Eligible Mac**:
+An Open Mac with KakaoTalk already running that can be selected for an automatic session
+acquisition or handoff. A Mac whose app was deliberately quit is not eligible.
+_Avoid_: Any Open Mac, automatically launched app
+
 **Session Owner**:
 The single Managed Mac entitled to maintain or recover the desktop connection. Ownership
 does not imply that its connection is currently working.
@@ -29,8 +34,8 @@ desktop session automatically.
 _Avoid_: Connected, logged out, offline Session Owner
 
 **Automatic Handoff**:
-A transfer of session ownership prompted by the current owner's confirmed screen-off or
-locked state, with an Open Mac available to receive it.
+A transfer of session ownership prompted by the current owner's confirmed screen-off,
+locked state, or normal app exit, with an Eligible Mac available to receive it.
 _Avoid_: Automatic takeover of an Open Session Owner
 
 **Manual Reconnect**:

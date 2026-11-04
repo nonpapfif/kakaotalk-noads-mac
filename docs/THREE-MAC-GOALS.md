@@ -20,19 +20,26 @@ not acceptance criteria for this goal reset. Cross-network requirements remain u
 | Display on and user session unlocked | Treat the Managed Mac as Open. |
 | Caffeinate is running | Apply the same display/lock definition of Open. |
 | Owner remains Open without recent input | Keep protecting the owner. |
-| Exactly one Mac is Open, with no protected owner | Automatically select that Mac when peer state is known. |
+| Exactly one Mac is Eligible, with no protected owner | Automatically select that Mac when peer state is known. |
 | Another Mac opens or receives input while the owner remains Open | Keep the existing owner. Explicit Manual Reconnect changes the selection. |
-| Owner's display turns off or its session locks | Put the previous owner on Hold and automatically hand off to an eligible Open Mac. |
-| Two Open Macs can receive an Automatic Handoff | Prefer the Mac with the most recent keyboard or mouse use. |
+| Owner's display turns off or its session locks | Put the previous owner on Hold and automatically hand off to an Eligible Mac. |
+| Two Eligible Macs can receive an Automatic Handoff | Prefer the Mac with the most recent keyboard or mouse use. |
 | No Mac is Open | Put all Managed Macs on Hold. |
-| A Mac opens after all were on Hold | Automatically acquire the session if it is the only Open Mac and peer state is known. |
+| A Mac opens after all were on Hold | Automatically acquire the session if it is the only Eligible Mac and peer state is known. |
 | The Open owner temporarily loses Internet connectivity | Retain ownership and perform Owner Recovery on the same Mac. Other Macs remain on Hold. |
 | Peer state is unknown | Defer automatic acquisition or handoff. Do not interpret missing contact as ownership release. |
+| User normally quits the owner's app | Release ownership and hand off to another Eligible Mac. Do not automatically relaunch the app that was quit. |
+| App crashes or contact is abruptly lost | Do not infer normal ownership release from the missing contact. Apply Unknown Presence handling. |
+| Multiple Eligible Macs start with no established owner | Choose the Mac with the most recent keyboard or mouse use. If ordering cannot be established, wait for Manual Reconnect. |
+| Manual Reconnect is requested during Unknown Presence | Allow the explicit request; automatic takeover remains deferred. |
+| Multiple Manual Reconnect requests arrive concurrently | Process only the first accepted request; report a conflict to the other requesters. |
 
 Manual Reconnect is the previously agreed, intentional exception to protection of an Open
-owner. The user has not yet decided its behavior during unknown peer state or concurrent
-requests. Keeping an owner distinct from a working connection is essential to the priority
-rule; see [ADR 0001](adr/0001-protect-the-open-session-owner.md).
+owner, including during Unknown Presence. Concurrent requests do not authorize competing
+reconnect attempts. The meaning and feasibility of a shared request order still need design
+evidence; no coordinator is selected by this policy. Keeping an owner distinct from a working
+connection is essential to the priority rule; see
+[ADR 0001](adr/0001-protect-the-open-session-owner.md).
 
 ## Current-code comparison
 
@@ -59,25 +66,28 @@ against every server-side revocation or unmanaged client has not been establishe
 
 ## Decision tree and open questions
 
-Settled: user/scope -> Open definition -> owner protection -> automatic handoff -> candidate
-selection -> Owner Recovery -> conservative behavior under Unknown Presence.
+Settled: user/scope -> Open/Eligible definitions -> owner protection -> automatic handoff ->
+candidate selection -> Owner Recovery -> conservative automatic behavior under Unknown
+Presence -> normal app exit -> initial owner selection -> explicit request exceptions.
 
-The next interview round covers these decisions independently:
+The next interview round covers these decisions:
 
-1. Owner lifecycle: whether normal app quit releases ownership; how to treat crash, abrupt
-   power loss, and missing contact without violating conservative Unknown Presence handling.
-2. Startup: how to choose when multiple Macs are Open and no owner is established.
-3. Manual Reconnect arbitration: simultaneous requests and requests during Unknown Presence.
+1. Required operation across different networks. The choice of coordination infrastructure
+   follows this requirement and feasibility research.
+2. Measurable completion criteria, including transfer latency and three-Mac stability duration.
+3. Authentication expiration: when to stop unattended recovery and request manual sign-in.
 
 Further decisions remain before implementation:
 
-- Whether closed apps are started automatically or only running apps participate.
-- Required operation across different networks, and acceptable coordination infrastructure.
+- Acceptable coordination infrastructure after network scope is settled, and handling an
+  unavailable coordinator during an explicit Manual Reconnect or request arbitration.
 - Actual display/lock behavior with external displays and remote sessions on these Macs.
-- Delay tolerance for handoff and display/lock transitions; deterministic recency ties.
-- Saved-authentication expiration, failed transfers, and useful user-facing failure states.
-- Measurable completion criteria: all six directed transfers, three-Mac caffeinate/idle
-  duration, network interruption/rejoin, restart, and concurrent request scenarios.
+- Display/lock transition delay tolerance and stale observation handling. Unresolvable
+  recent-input ordering already falls back to Manual Reconnect.
+- Failed transfers and useful user-facing failure states without creating an automatic
+  ownership fight or silently relaunching a deliberately closed app.
+- Detailed acceptance coverage: all six directed transfers, caffeinate/idle duration,
+  network interruption/rejoin, restart, and concurrent request scenarios.
 
 No coordinator, transport, credentials, deployment model, or implementation rewrite has
 been selected. Architecture follows the remaining decisions and feasibility evidence.
