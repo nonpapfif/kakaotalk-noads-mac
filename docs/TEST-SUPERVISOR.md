@@ -8,8 +8,11 @@ and authorization that a future adapter would supply.
 
 Python runs commands, persists each child exit, and waits for results. Luna low selects
 the next necessary test, Sol medium proposes a diff, and Astra medium reviews the
-recorded source and evidence. Model workers have read-only execution and receive scoped
-source text. The controller checks the diff allowlist before applying it in a dedicated
+recorded source and evidence. For a repair, Astra records the required change and the
+observable test separately. Luna and Sol receive both instructions, and Python reruns
+the suite on the changed source before returning the results to Astra. This cycle ends
+at the accepted milestone or an established blocker. Model workers can read the scoped
+worktree. The controller checks the diff allowlist before applying it in a dedicated
 worktree. Generated tests run in a macOS sandbox that denies network access and restricts
 writes to the worktree and scratch directory.
 
@@ -22,7 +25,8 @@ for execution. See [Codex App Server](https://learn.chatgpt.com/docs/app-server)
 
 Use a clean dedicated worktree at the approved revision and a private run directory outside
 that checkout. Copy the controller into the run directory before handing it to launchd.
-Use one service and one supervisor lock per run.
+Use one service and one supervisor lock per run. A revision with the policy fixture already
+present starts at verification and returns its fresh evidence to Astra.
 
 ```sh
 python3 tools/test_supervisor.py check --codex /absolute/path/to/codex

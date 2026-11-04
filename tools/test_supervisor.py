@@ -55,6 +55,10 @@ Use read-only commands to inspect the scoped worktree. Your role produces struct
 output, not filesystem edits or test execution. Python applies the implementation
 patch and runs tests. A read-only sandbox is expected and does not block your role.
 Report unexecuted checks honestly.
+Compiler and fixture failure diagnostics must be visible in recorded test output.
+Treat hidden compiler or fixture stderr as a repairable review issue.
+A failed command inside the model sandbox does not establish a blocker for the
+Python runner. Use the saved Python exit records for build and test evidence.
 A successful milestone is offline evidence. It does not establish a working
 presence adapter, live Kakao authentication, or actual three-Mac stability.
 """
@@ -66,9 +70,15 @@ DISABLED = (
 )
 STRING = {"type": "string"}
 SCHEMAS = {
-    "plan": {"decision": ["implement", "blocked"], "objective": STRING, "evidence": STRING},
+    "plan": {
+        "decision": ["implement", "blocked"], "objective": STRING,
+        "test": STRING, "evidence": STRING,
+    },
     "implement": {"decision": ["ready", "blocked"], "patch": STRING, "summary": STRING},
-    "review": {"decision": ["complete", "fix", "blocked"], "summary": STRING, "evidence": STRING},
+    "review": {
+        "decision": ["complete", "fix", "blocked"], "summary": STRING,
+        "evidence": STRING, "next_change": STRING, "next_test": STRING,
+    },
 }
 TERMINAL = {"complete", "blocked"}
 
@@ -250,6 +260,12 @@ def model_result(path: Path, role: str) -> dict[str, str]:
         raise RuntimeError(f"Invalid {role} result fields")
     if result["decision"] not in schema["decision"]:
         raise RuntimeError(f"Invalid {role} decision")
+    if role == "review" and result["decision"] == "fix":
+        if not result["next_change"].strip() or not result["next_test"].strip():
+            raise RuntimeError("Astra repair review must specify a change and a test")
+    if role == "plan" and result["decision"] == "implement":
+        if not result["objective"].strip() or not result["test"].strip():
+            raise RuntimeError("Luna plan must specify a change and a test")
     return result
 
 
@@ -306,8 +322,9 @@ class Supervisor:
             "controller_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             "codex": codex,
         }
+        initial_phase = "verify" if all((root / name).is_file() for name in EDITABLE) else "baseline"
         self.state = read_json(self.path) if self.path.exists() else {
-            **identity, "phase": "baseline", "history": [], "attempts": [], "pending": None,
+            **identity, "phase": initial_phase, "history": [], "attempts": [], "pending": None,
         }
         if any(self.state.get(key) != value for key, value in identity.items()):
             raise RuntimeError("Run source, controller, or Codex identity changed")
@@ -330,13 +347,23 @@ class Supervisor:
             for name in ("stdout.log", "stderr.log"):
                 context.append(f"{name}\n{(directory / name).read_text()[-9000:]}")
         if role == "implement":
-            context.append(f"Planner instruction\n{self.state['plan']['objective']}")
-        if self.state.get("review"):
-            context.append(f"Previous independent review\n{self.state['review']['summary']}")
+            plan = self.state["plan"]
+            context.append(f"Planned change\n{plan['objective']}\nPlanned test\n{plan['test']}")
+        review = self.state.get("review")
+        if review:
+            context.append(f"Previous independent review\n{review['summary']}")
+            if review["decision"] == "fix":
+                context.append(
+                    f"Astra required change\n{review['next_change']}\n"
+                    f"Astra required test\n{review['next_test']}"
+                )
         if self.state.get("block_proposal"):
             context.append(f"Proposed blocker to verify\n{self.state['block_proposal']}")
         instruction = {
-            "plan": "Select the next necessary offline test and fix. A blocker needs evidence.",
+            "plan": (
+                "Select the next necessary offline test and fix. Carry forward Astra's "
+                "required change and test when present. A blocker needs runner evidence."
+            ),
             "implement": (
                 "Return a git-apply-compatible unified diff in patch. Only the three allowed "
                 "paths may change. For a blocker use an empty patch and explain the evidence."
@@ -344,7 +371,9 @@ class Supervisor:
             "review": (
                 "Read the supplied source and evidence or inspect the worktree read-only. "
                 "Independently review the actual code and test evidence. Complete only if "
-                "the whole offline milestone passes. Use fix for a repairable failure. "
+                "the whole offline milestone passes. Use fix for a repairable failure and "
+                "give the exact next change and the observable test that will verify it in "
+                "next_change and next_test. Leave those fields empty for complete or blocked. "
                 "Confirm blocked only for an established external prerequisite."
             ),
         }[role]
@@ -484,7 +513,7 @@ class Supervisor:
             elif decision == "fix":
                 tried_implementation = f"implement:{digest}" in self.state["attempts"]
                 if self.state.get("block_proposal") and not tried_implementation:
-                    plan = {"objective": answer["summary"]}
+                    plan = {"objective": answer["next_change"], "test": answer["next_test"]}
                     self.save(
                         phase="implement", pending=None, review=answer, plan=plan,
                         block_proposal=None,
@@ -530,14 +559,17 @@ def main() -> int:
         return 0
     if not args.run:
         parser.error("--run is required")
+    if args.action == "verify":
+        if not args.worktree or not args.worktree.is_absolute() or not args.run.is_absolute():
+            parser.error("verify requires absolute worktree and scratch paths")
+        # The parent resolves these paths before entering the restricted test sandbox.
+        return verify(args.worktree, args.run)
     run = args.run.resolve(strict=True)
     if args.action == "worker":
         return worker(run)
     if not args.worktree:
         parser.error("--worktree is required")
     root = args.worktree.resolve(strict=True)
-    if args.action == "verify":
-        return verify(root, run)
     if not args.codex:
         parser.error("run requires --codex")
     if root == run or root in run.parents or run in root.parents:
