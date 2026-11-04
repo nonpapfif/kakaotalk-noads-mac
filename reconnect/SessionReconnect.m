@@ -1,5 +1,6 @@
 #import <Cocoa/Cocoa.h>
 #import "AppUpdater.h"
+#import "SessionNetworkGate.h"
 #import "SessionDisconnectPolicy.h"
 #import <objc/message.h>
 #import <objc/runtime.h>
@@ -205,12 +206,14 @@ static NSUInteger RebindOpenChatModels(id core) {
 @property(nonatomic, strong) NSDate *lastRequest;
 @property(atomic) BOOL reconnecting;
 @property(atomic) BOOL holding;
+@property(nonatomic) BOOL holdWorkStopped;
 @property(nonatomic, strong) SessionReconnectFeedback *feedback;
 @property(nonatomic, strong) NSTextField *feedbackLabel;
 @property(nonatomic, strong) NSProgressIndicator *feedbackSpinner;
 @property(nonatomic) NSUInteger feedbackGeneration;
 - (void)enterHold;
 - (void)leaveHold;
+- (void)stopHeldSessionWork;
 - (void)install;
 - (void)ensureMenu;
 - (void)attachSidebarButton;
@@ -226,6 +229,7 @@ static SessionReconnectController *controller;
 static IMP originalDidLogin;
 
 static void ReconnectDidLogin(id core, SEL selector) {
+    if (controller.holding && !controller.reconnecting) return;
     ((void (*)(id, SEL))originalDidLogin)(core, selector);
     dispatch_async(dispatch_get_main_queue(), ^{
         [controller leaveHold];
@@ -253,6 +257,8 @@ static void PreserveIdleSessionOnDisconnect(id auth, SEL selector, id notificati
     id info = SendObject(SendObject(notification, @"object"), @"userInfo");
     id reason = [info isKindOfClass:NSDictionary.class]
         ? info[@"LPErrorLocoKickoutedReasonCodeKey"] : nil;
+    if (controller.holding && !controller.reconnecting &&
+        SendBool(auth, @"isLoggedIn") && !SendBool(auth, @"isLoggingOut")) return;
     if (loco && PreserveDisconnectedSession(reason, SendBool(auth, @"isLoggedIn"),
         SendBool(auth, @"isLoggingOut"),
         SendBool(auth, @"doingAutoLogin") || SendBool(auth, @"isTryingToLogin"),
@@ -306,6 +312,62 @@ static BOOL ValidVoidMethod(Method method, unsigned int arguments) {
     free(type);
     return valid;
 }
+static IMP originalTimerStart;
+static IMP originalTimerTick;
+static IMP originalAgentConnect;
+
+static void StartTimerOutsideHold(id timer, SEL selector) {
+    if (controller.holding) return;
+    ((void (*)(id, SEL))originalTimerStart)(timer, selector);
+}
+static void TickTimerOutsideHold(id timer, SEL selector) {
+    if (controller.holding) return;
+    ((void (*)(id, SEL))originalTimerTick)(timer, selector);
+}
+static void ConnectAgentOutsideHold(id agent, SEL selector) {
+    if (!AllowHeldSessionAuthentication(controller.holding, controller.reconnecting)) return;
+    ((void (*)(id, SEL))originalAgentConnect)(agent, selector);
+}
+static IMP originalLocoStatusChange;
+static void HoldOnLocoStatusChange(id client, SEL selector, id manager,
+                                   signed char previous, signed char next) {
+    id auth = SendObject(SendObject(NSClassFromString(@"MacTalkCore"), @"core"), @"auth");
+    if (SendBool(client, @"loggedIn") && next != 25 && !controller.reconnecting &&
+        SendBool(auth, @"isLoggedIn") && !SendBool(auth, @"isLoggingOut")) {
+        [controller enterHold];
+    }
+    ((void (*)(id, SEL, id, signed char, signed char))originalLocoStatusChange)(
+        client, selector, manager, previous, next);
+}
+
+static BOOL InstallHoldTransportHooks(void) {
+    Class timer = NSClassFromString(@"FCTimerController");
+    Method start = class_getInstanceMethod(timer, NSSelectorFromString(@"startTimer"));
+    Method tick = class_getInstanceMethod(timer, NSSelectorFromString(@"onTimer"));
+    Method stop = class_getInstanceMethod(timer, NSSelectorFromString(@"stopTimer"));
+    Method logout = class_getInstanceMethod(NSClassFromString(@"LocoManager"),
+        NSSelectorFromString(@"logout"));
+    Method status = class_getInstanceMethod(NSClassFromString(@"BCLocoClient"),
+        NSSelectorFromString(@"locoManager:didChangeStatusFromStatus:toStatus:"));
+    if (!ValidVoidMethod(status, 5)) return NO;
+    for (unsigned int index = 3; index <= 4; index++) {
+        char *type = method_copyArgumentType(status, index);
+        BOOL valid = type && strcmp(type, "c") == 0;
+        free(type);
+        if (!valid) return NO;
+    }
+    Method connect = class_getInstanceMethod(NSClassFromString(@"LocoAgent"),
+        NSSelectorFromString(@"connect"));
+    if (!ValidVoidMethod(start, 2) || !ValidVoidMethod(tick, 2) ||
+        !ValidVoidMethod(stop, 2) || !ValidVoidMethod(logout, 2) ||
+        !ValidVoidMethod(connect, 2)) return NO;
+    originalTimerStart = method_setImplementation(start, (IMP)StartTimerOutsideHold);
+    originalTimerTick = method_setImplementation(tick, (IMP)TickTimerOutsideHold);
+    originalAgentConnect = method_setImplementation(connect, (IMP)ConnectAgentOutsideHold);
+    originalLocoStatusChange = method_setImplementation(status, (IMP)HoldOnLocoStatusChange);
+    return YES;
+}
+
 static BOOL InstallHoldHooks(void) {
     Class auth = NSClassFromString(@"FCAuthController");
     Method kickout = class_getInstanceMethod(NSClassFromString(@"BCLocoClient"),
@@ -332,7 +394,8 @@ static BOOL InstallHoldHooks(void) {
     if (self.installed || !NSApp.mainMenu) return;
     self.installed = YES;
     self.loginHookReady = InstallLoginHook();
-    BOOL holdReady = InstallDisconnectGuard() && InstallHoldHooks();
+    BOOL holdReady = InstallDisconnectGuard() && InstallHoldHooks() &&
+        InstallHoldTransportHooks();
     [self ensureMenu];
     if (!holdReady) [self showStatus:@"Hold protection is unavailable."];
     [self attachSidebarButton];
@@ -452,7 +515,10 @@ static BOOL InstallHoldHooks(void) {
 
 - (void)enterHold {
     self.holding = YES;
+    SessionNetworkGateSetHeld(YES);
     dispatch_async(dispatch_get_main_queue(), ^{
+        if (!self.holding || self.reconnecting) return;
+        [self stopHeldSessionWork];
         self.button.title = @"Reconnect on This Mac (Hold)";
         ((SessionSidebarButton *)self.sidebarButton).holding = YES;
         self.sidebarButton.accessibilityValue = @"Hold";
@@ -460,12 +526,37 @@ static BOOL InstallHoldHooks(void) {
         self.sidebarButton.needsDisplay = YES;
     });
 }
+- (void)stopHeldSessionWork {
+    if (self.holdWorkStopped) return;
+    id core = SendObject(NSClassFromString(@"MacTalkCore"), @"core");
+    id timer = SendObject(core, @"timer");
+    id manager = SendObject(SendObject(core, @"loco"), @"locoManager");
+    SEL stop = NSSelectorFromString(@"stopTimer");
+    SEL close = NSSelectorFromString(@"logout");
+    if (![timer respondsToSelector:stop] || ![manager respondsToSelector:close]) {
+        [self showStatus:@"Hold: native connection cleanup is unavailable."];
+        return;
+    }
+    self.holdWorkStopped = YES;
+    ((void (*)(id, SEL))objc_msgSend)(timer, stop);
+    // LocoManager.logout only disconnects ticket/carriage agents in the reviewed build.
+    // Do not call FCAuthController or BCLocoClient logout, which change login state.
+    ((void (*)(id, SEL))objc_msgSend)(manager, close);
+}
+
 - (void)leaveHold {
+    BOOL restartTimer = self.holdWorkStopped;
     self.holding = NO;
+    SessionNetworkGateSetHeld(NO);
+    self.holdWorkStopped = NO;
     self.button.title = @"Reconnect on This Mac";
     ((SessionSidebarButton *)self.sidebarButton).holding = NO;
     id core = SendObject(NSClassFromString(@"MacTalkCore"), @"core");
     BOOL connected = SendBool(SendObject(core, @"loco"), @"loggedIn");
+    id timer = SendObject(core, @"timer");
+    SEL start = NSSelectorFromString(@"startTimer");
+    if (restartTimer && connected && [timer respondsToSelector:start])
+        ((void (*)(id, SEL))objc_msgSend)(timer, start);
     self.sidebarButton.accessibilityValue = connected ? @"Connected" : @"Ready";
     [self showStatus:connected ? @"Connected." : @"Sign in first if saved login is unavailable."];
     self.sidebarButton.needsDisplay = YES;
@@ -532,6 +623,7 @@ static BOOL InstallHoldHooks(void) {
 
 - (void)finishFeedback:(NSString *)message {
     self.reconnecting = NO;
+    if (self.holding) SessionNetworkGateSetHeld(YES);
     [(SessionSidebarButton *)self.sidebarButton setBusy:NO];
     [self setReconnectEnabled:YES];
     [self showFeedback:message spinning:NO];
@@ -571,6 +663,7 @@ static BOOL InstallHoldHooks(void) {
     }
     self.awaitingConnectionEvent = YES;
     self.reconnecting = YES;
+    SessionNetworkGateSetHeld(NO);
     [(SessionSidebarButton *)self.sidebarButton setBusy:YES];
     [self showFeedback:@"Reconnecting..." spinning:YES];
     self.lastRequest = [NSDate date];
@@ -602,6 +695,7 @@ static BOOL InstallHoldHooks(void) {
 - (void)didConnectCore:(id)core {
     if (!self.awaitingConnectionEvent || !self.lastRequest) return;
     self.awaitingConnectionEvent = NO;
+    [self leaveHold];
     if (-[self.lastRequest timeIntervalSinceNow] > 60) {
         [self showStatus:@"The request expired. Existing windows were not refreshed."];
         [self finishFeedback:@"Reconnect timed out"];
@@ -632,6 +726,7 @@ static BOOL InstallHoldHooks(void) {
 
 __attribute__((constructor)) static void InitializeReconnect(void) {
     @autoreleasepool {
+        SessionNetworkGateInstall();
         controller = [SessionReconnectController new];
         [[NSNotificationCenter defaultCenter] addObserverForName:NSApplicationDidFinishLaunchingNotification
             object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {

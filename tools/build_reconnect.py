@@ -62,6 +62,7 @@ def build(source: Path, output: Path) -> None:
             '-mmacosx-version-min=' + profile['minimum_macos'], '-framework',
             'Cocoa', '-install_name', '@rpath/SessionReconnect.dylib',
             str(root / 'reconnect/SessionReconnect.m'), str(root / 'reconnect/AppUpdater.m'),
+            str(root / 'reconnect/SessionNetworkGate.m'),
             '-o', str(helper),
         ], check=True)
         entitlements = base.arm64_entitlements(original)

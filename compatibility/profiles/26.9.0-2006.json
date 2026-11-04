@@ -105,7 +105,14 @@
     "locoDidDisconnect:",
     "locoManager:didReceiveKickOutPushNotice:",
     "refreshToken",
-    "coreDidLogout"
+    "coreDidLogout",
+    "timer",
+    "startTimer",
+    "stopTimer",
+    "onTimer",
+    "locoManager",
+    "logout",
+    "connect"
   ],
   "validation_scope": [
     "owner-tested Apple Silicon app",
