@@ -1,4 +1,4 @@
-# Release validation: 26.9.0-reconnect.1
+# Validation record
 
 Validation date: 2026-11-03. Host: Apple Silicon macOS.
 
@@ -174,3 +174,36 @@ The production release excludes the temporary sanitized event recorder. The owne
 an instrumented candidate on Mac A. Two-Mac long-idle behavior with both machines on this
 version is still unverified. The periodic-authentication interference hypothesis is not
 confirmed. This release is not a fix for all delayed disconnections or simultaneous login.
+
+## Module cleanup and unpublished Hold candidate: 2026-11-04
+
+The previously uncommitted Hold transport/network-gate candidate is preserved in a separate
+commit from the module cleanup. It adds timer/transport guards, immediate native status
+observation, socket interposition, and URLSession task suspension. It remains unpublished;
+the latest published installer is reconnect.7. No release tag or asset was changed.
+
+The cleanup moves sidebar drawing and feedback layout into `SessionReconnectViews`, shares
+universal Swift compilation between the installer and updater, and reuses the existing
+streaming SHA-256 function. Session hooks, request timing, patch bytes, app identity,
+manifest fields, signing order, and command-line entry points are retained.
+
+Verified on the Apple Silicon development host:
+
+- All 24 tests passed before cleanup in 46.224 seconds and after cleanup in 46.294 seconds.
+  Installer/update checks used the signed installed app as a read-only fixture and copied
+  it to disposable destinations. Native Hold/network-gate tests exercised production code.
+- Every original modified/untracked file matched the separate preservation commit.
+- Extracted button drawing and feedback layout matched the preserved candidate, allowing
+  only receiver/field relocation and whitespace differences.
+- The reconnect helper compiled for arm64 and x86_64 with warnings treated as errors.
+- The external updater compiled for both architectures and passed deep strict signature
+  verification. Its existing warnings-as-errors setting was retained.
+- The installer compiled for both architectures and passed deep strict signature
+  verification. DMG, installer ZIP, update ZIP, and update-manifest packaging completed
+  using the existing signed payload as read-only input.
+- Python compilation and command-line help checks passed.
+
+This did not rebuild the full patched app from the original official source, install or
+launch a candidate, or perform visual QA. Two-Mac long-idle session behavior and Intel
+runtime remain unverified. Socket/URLSession checks do not prove zero egress or identify
+the cause of the previously observed delayed disconnects. See [DEVELOPMENT.md](DEVELOPMENT.md).

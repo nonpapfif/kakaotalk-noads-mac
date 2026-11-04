@@ -3,7 +3,8 @@ from pathlib import Path
 import plistlib
 import shutil
 import subprocess
-import tempfile
+
+from tools.build_support import build_universal_swift
 
 
 def build(output: Path) -> None:
@@ -23,18 +24,10 @@ def build(output: Path) -> None:
                                   'LSItemContentTypes': ['com.apple.property-list']}],
     }))
     shutil.copy(root / 'installer/install-app.sh', contents / 'Resources/install-app.sh')
-    with tempfile.TemporaryDirectory(prefix='kakao-updater-build-') as temporary:
-        directory = Path(temporary)
-        binaries = []
-        for arch in ('arm64', 'x86_64'):
-            binary = directory / arch
-            subprocess.run(['xcrun', 'swiftc', '-O', '-warnings-as-errors',
-                            '-module-cache-path', str(directory / 'modules'), '-target',
-                            arch + '-apple-macosx13.0', str(root / 'updater/UpdateValidation.swift'),
-                            str(root / 'updater/Updater.swift'), '-o', str(binary)], check=True)
-            binaries.append(str(binary))
-        subprocess.run(['lipo', '-create', *binaries, '-output',
-                        str(contents / 'MacOS/Updater')], check=True)
+    build_universal_swift(
+        [root / 'updater/UpdateValidation.swift', root / 'updater/Updater.swift'],
+        contents / 'MacOS/Updater', warnings_as_errors=True,
+    )
     subprocess.run(['codesign', '--force', '--sign', '-', '--options', 'runtime',
                     str(output)], check=True)
     subprocess.run(['codesign', '--verify', '--deep', '--strict', str(output)], check=True)

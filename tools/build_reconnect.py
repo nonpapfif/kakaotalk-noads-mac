@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from pathlib import Path
 import plistlib
@@ -13,7 +12,7 @@ import tempfile
 
 from tools import patch_kakaotalk as base
 from tools.build_updater import build as build_updater
-from compatibility import BUNDLE_ID, load_profile, require_source
+from compatibility import BUNDLE_ID, digest, load_profile, require_source
 from reconnect.inject_load_command import inject
 
 
@@ -62,6 +61,8 @@ def build(source: Path, output: Path) -> None:
             '-mmacosx-version-min=' + profile['minimum_macos'], '-framework',
             'Cocoa', '-install_name', '@rpath/SessionReconnect.dylib',
             str(root / 'reconnect/SessionReconnect.m'), str(root / 'reconnect/AppUpdater.m'),
+            str(root / 'reconnect/SessionNetworkGate.m'),
+            str(root / 'reconnect/SessionReconnectViews.m'),
             '-o', str(helper),
         ], check=True)
         entitlements = base.arm64_entitlements(original)
@@ -89,13 +90,13 @@ def build(source: Path, output: Path) -> None:
         subprocess.run(['codesign', '--force', '--sign', '-', '--options', 'runtime',
                         '--entitlements', str(entitlement_file), str(output)], check=True)
         subprocess.run(['codesign', '--verify', '--deep', '--strict', str(output)], check=True)
-    if hashlib.sha256((source / binary_path).read_bytes()).hexdigest() != profile['source_sha256']:
+    if digest(source / binary_path) != profile['source_sha256']:
         raise RuntimeError('Source changed during build')
     manifest_path.write_text(json.dumps({
         'version': version, 'build': build_number, 'bundle_id': BUNDLE_ID,
         'source_sha256': profile['source_sha256'], 'patches': changes,
-        'executable_sha256': hashlib.sha256((output / binary_path).read_bytes()).hexdigest(),
-        'helper_sha256': hashlib.sha256((output / 'Contents/Frameworks/SessionReconnect.dylib').read_bytes()).hexdigest(),
+        'executable_sha256': digest(output / binary_path),
+        'helper_sha256': digest(output / 'Contents/Frameworks/SessionReconnect.dylib'),
         'user_data_copied': False,
     }, indent=2) + '\n')
     print(f'Built {output}; source and user data were not modified.')
