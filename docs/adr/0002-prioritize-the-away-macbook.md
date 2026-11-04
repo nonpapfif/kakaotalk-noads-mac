@@ -13,5 +13,7 @@ override precedence, and unknown home-peer presence are resolved as follows: ret
 Reservation through temporary lock/display-off, allow the Away MacBook to attempt automatic
 acquisition despite unknown home-peer presence, and honor an explicit Manual Reconnect
 ahead of automatic Away MacBook preference without automatically taking the session back.
-The method of recognizing home versus external networks and behavior during an unreachable
-ownership coordinator remain undecided.
+Unknown home-peer presence is different from unavailable shared ownership approval. For
+the latter, [ADR 0003](0003-zero-cost-scope-and-approval-unavailability.md) preserves existing
+connections and defers new automatic/manual transfers, including Away MacBook acquisition.
+The method of recognizing home versus external networks remains undecided.

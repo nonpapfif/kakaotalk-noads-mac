@@ -17,6 +17,12 @@ not acceptance criteria for this goal reset. Coordination must work across diffe
 networks. The owner takes at most one MacBook outside at a time. Home/external network
 recognition and coordination technology are still unselected.
 
+The spending budget is exactly zero. Operating a separate external coordination service
+is outside the default scope because the owner wants to keep this project small. Prefer
+existing capabilities and infrastructure; do not interpret a free service tier as approval
+to expand operations or provision a service. Revisit the product scope with evidence if
+the guarantees cannot be met within these constraints.
+
 Selection priority is explicit Manual Reconnect, then Away MacBook preference, then
 protection of the existing home owner. Automatic input-recency selection applies only when
 selecting a replacement is allowed by those rules. An accepted manual selection must not
@@ -45,6 +51,7 @@ be immediately undone by automatic Away MacBook acquisition or stale automatic r
 | Multiple Eligible Macs start with no established owner | Choose the Mac with the most recent keyboard or mouse use. If ordering cannot be established, wait for Manual Reconnect. |
 | Manual Reconnect is requested during Unknown Presence | Allow the explicit request; automatic takeover remains deferred. |
 | Multiple Manual Reconnect requests arrive concurrently | Process only the first accepted request; report a conflict to the other requesters. |
+| No valid shared ownership approval path is reachable | Preserve the existing connection and defer new automatic and manual transfers. |
 
 Manual Reconnect is the previously agreed, intentional exception to protection of an Open
 owner, including during Unknown Presence. Concurrent requests do not authorize competing
@@ -60,8 +67,10 @@ automatic handoff must not reverse the Away MacBook preference during a temporar
 
 Unknown home-peer presence and an unreachable authoritative coordinator are different
 failure cases. The user accepted an Away MacBook exception for the former. Arbitration and
-failure behavior for the latter remain unselected; the priority exception does not by
-itself establish a shared order of concurrent manual requests.
+failure behavior for the latter is now conservative: preserve existing connections and
+defer new transfers, including Manual Reconnect. The Away MacBook presence exception does
+not bypass this approval requirement or establish a shared order of concurrent requests.
+See [ADR 0003](adr/0003-zero-cost-scope-and-approval-unavailability.md).
 
 ## Automatic Login goal and evidence
 
@@ -146,9 +155,22 @@ session protection.
 Inference from the agreed arbitration requirement: when no shared approval path or valid
 coordination authority is reachable, independently approving new ownership on isolated
 Macs cannot also guarantee a single globally first-accepted manual request. Retaining an
-existing native connection and deferring new transfers is a candidate failure policy;
-it has not yet been accepted. Unknown home-peer presence is a different case and retains
-the already accepted Away MacBook exception.
+existing native connection and deferring new automatic/manual transfers is now the
+accepted failure policy. Unknown home-peer presence is a different case and retains the
+already accepted Away MacBook exception.
+
+The externally operated service options above are research context, not the preferred
+architecture under the user's later zero-spending and small-scope constraints. Investigate
+existing app/network/synchronization capabilities before reconsidering service scope.
+See the bounded [zero-cost coordination research](ZERO-COST-COORDINATION.md) for the
+examined evidence and outstanding guarantees. An existing Mac as sole authority with
+existing synchronization as message transport is an unselected candidate, not a free or
+ten-second implementation guarantee.
+
+Continuing a working native connection must also be distinguished from making a fresh
+saved-auth login request. It is not yet proven that a previously selected owner's fresh
+login cannot replace a newer owner after a communications partition. This is a feasibility
+question for the accepted protection/recovery rules, not permission to use stale ownership.
 
 ## Decision tree and open questions
 
@@ -159,13 +181,29 @@ cross-network operation -> Away MacBook priority -> provisional completion crite
 Automatic Login is required; coverage of fully expired authentication remains unverified.
 Also settled: Away Reservation across temporary lock, explicit manual selection above
 Away MacBook preference, and Away MacBook acquisition despite unknown home-peer presence.
+Budget is zero, separate external service operation is outside the default scope, and
+unavailable shared ownership approval defers new automatic/manual transfers.
 
-The next product decisions are:
+The next product decision is scope under the zero-cost constraint:
 
-1. Whether operating a small external ownership/presence service is in scope. Provider,
-   cost, account setup, deployment, and device authentication still require concrete design.
-2. Whether to preserve existing connections but defer new transfers when the ownership
-   approval service itself cannot be reached, including explicit manual requests.
+The globally first-accepted manual-request guarantee was proposed during the interview;
+it is additional to the user's primary purpose of avoiding repeated login while rotating
+among three Macs. Preserving it requires demonstrating shared arbitration, which the
+examined local/native mechanisms do not provide on current evidence. Decide whether to
+retain that strict guarantee with added coordination, or explicitly relax that guarantee
+before pursuing a smaller design. No reduction has been accepted or implemented.
+
+Any relaxation is limited to global first-accepted ordering; it does not silently remove
+owner protection, manual/away precedence, automatic-login goals, or the accepted policy
+of preserving existing connections and deferring transfers without valid approval.
+
+Engineering work after that scope decision:
+
+1. Identify what can be achieved with existing KakaoTalk authentication/session events,
+   local coordination, or existing synchronization without a new external service.
+2. Establish which cross-network ordering and ownership guarantees those paths actually
+   support. Any proposed reduction in an accepted guarantee must return to the user as a
+   product decision rather than being silently treated as an implementation detail.
 
 Further decisions remain before implementation:
 
