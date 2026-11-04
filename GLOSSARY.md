@@ -9,6 +9,16 @@ domain; the goal document tracks implementation gaps separately.
 One of the owner's three Macs participating in session coordination.
 _Avoid_: Any desktop, every installed client
 
+**Home Network**:
+A network belonging to the owner's usual home environment, where the three Managed Macs
+are normally used in turn.
+_Avoid_: Any previously used network
+
+**Away MacBook**:
+The Managed MacBook carried outside the home and used on an external network. The owner
+takes at most one MacBook outside at a time.
+_Avoid_: Every reachable peer, a second simultaneous outside MacBook
+
 **Open Mac**:
 A Managed Mac whose display is on and whose user session is unlocked. Recent input is not
 required for this status.
@@ -35,8 +45,8 @@ _Avoid_: Connected, logged out, offline Session Owner
 
 **Automatic Handoff**:
 A transfer of session ownership prompted by the current owner's confirmed screen-off,
-locked state, or normal app exit, with an Eligible Mac available to receive it.
-_Avoid_: Automatic takeover of an Open Session Owner
+lock, normal app exit, or the Away MacBook's higher priority.
+_Avoid_: Unconditional takeover of an Open Session Owner
 
 **Manual Reconnect**:
 An explicit user request to connect on a chosen Managed Mac, including a deliberate
@@ -47,6 +57,11 @@ _Avoid_: Background recovery, automatic handoff
 Restoration of the current Session Owner's interrupted connection without transferring
 ownership to a different Managed Mac.
 _Avoid_: Handoff, Manual Reconnect
+
+**Automatic Login**:
+Login completed without the user entering credentials or answering an authentication
+prompt. This is the desired experience, separate from whether a connection is working.
+_Avoid_: Repeated manual sign-in, a reconnect button press
 
 **Unknown Presence**:
 A Managed Mac's screen or lock state cannot be established reliably.
