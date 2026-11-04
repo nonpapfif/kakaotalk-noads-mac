@@ -1,0 +1,74 @@
+# Three-Mac Session Coordination
+
+The owner's three Macs share one desktop-session role. These terms describe the target
+domain; the goal document tracks implementation gaps separately.
+
+## Language
+
+**Managed Mac**:
+One of the owner's three Macs participating in session coordination.
+_Avoid_: Any desktop, every installed client
+
+**Home Network**:
+A network belonging to the owner's usual home environment, where the three Managed Macs
+are normally used in turn.
+_Avoid_: Any previously used network
+
+**Away MacBook**:
+The Managed MacBook carried outside the home and used on an external network. The owner
+takes at most one MacBook outside at a time.
+_Avoid_: Every reachable peer, a second simultaneous outside MacBook
+
+**Away Reservation**:
+The Away MacBook's retained preference while its display is off or its session is locked,
+so home Macs remain on Hold. An explicit Manual Reconnect elsewhere can override it.
+_Avoid_: A continuously live connection, a home handoff on temporary lock
+
+**Open Mac**:
+A Managed Mac whose display is on and whose user session is unlocked. Recent input is not
+required for this status.
+_Avoid_: Awake Mac, running app, recently used Mac
+
+**Eligible Mac**:
+An Open Mac with KakaoTalk already running that can be selected for an automatic session
+acquisition or handoff. A Mac whose app was deliberately quit is not eligible.
+_Avoid_: Any Open Mac, automatically launched app
+
+**Session Owner**:
+The single Managed Mac entitled to maintain or recover the desktop connection. Ownership
+does not imply that its connection is currently working.
+_Avoid_: Connected Mac, frontmost app
+
+**Connected Mac**:
+A Managed Mac with a working native KakaoTalk desktop connection.
+_Avoid_: Session Owner, Open Mac
+
+**Hold**:
+A waiting state that retains the app's existing windows without attempting to acquire the
+desktop session automatically.
+_Avoid_: Connected, logged out, offline Session Owner
+
+**Automatic Handoff**:
+A transfer of session ownership prompted by the current owner's confirmed screen-off,
+lock, normal app exit, or the Away MacBook's higher priority.
+_Avoid_: Unconditional takeover of an Open Session Owner
+
+**Manual Reconnect**:
+An explicit user request to connect on a chosen Managed Mac, including a deliberate
+transfer away from another Open Session Owner or an Away MacBook. An accepted explicit
+selection takes priority over automatic home/away preferences.
+_Avoid_: Background recovery, automatic handoff
+
+**Owner Recovery**:
+Restoration of the current Session Owner's interrupted connection without transferring
+ownership to a different Managed Mac.
+_Avoid_: Handoff, Manual Reconnect
+
+**Automatic Login**:
+Login completed without the user entering credentials or answering an authentication
+prompt. This is the desired experience, separate from whether a connection is working.
+_Avoid_: Repeated manual sign-in, a reconnect button press
+
+**Unknown Presence**:
+A Managed Mac's screen or lock state cannot be established reliably.
+_Avoid_: Closed, locked, owner relinquished
