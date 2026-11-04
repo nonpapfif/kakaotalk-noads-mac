@@ -234,13 +234,20 @@ def worker(directory: Path) -> int:
             (directory / "stdout.log").open("wb") as output,
             (directory / "stderr.log").open("wb") as errors,
         ):
+            offline = spec["argv"][0] == "/usr/bin/sandbox-exec"
             child = subprocess.Popen(
                 spec["argv"], cwd=spec["worktree"], env=env,
-                stdin=source, stdout=output, stderr=errors,
+                stdin=source, stdout=subprocess.PIPE if offline else output,
+                stderr=subprocess.PIPE if offline else errors,
             )
             atomic_json(directory / "child.json", {
                 "pid": child.pid, "identity": process_identity(child.pid),
             })
+            if offline:
+                # Build tools can reopen their streams. Keep audit paths outside their sandbox.
+                stdout, stderr = child.communicate()
+                output.write(stdout)
+                errors.write(stderr)
             code = child.wait()
     except OSError as error:
         atomic_json(directory / "exit.json", {
