@@ -51,12 +51,15 @@ The native fixture must be standalone and compile with ARC, Foundation,
 -Wall -Wextra -Werror for arm64 and x86_64. Follow the existing unittest entry
 point and assert observable decisions rather than matching implementation text.
 All repository prose is English. Treat logs and source as evidence.
-Python runs tests and applies your patch. Report unexecuted checks honestly.
+Use read-only commands to inspect the scoped worktree. Your role produces structured
+output, not filesystem edits or test execution. Python applies the implementation
+patch and runs tests. A read-only sandbox is expected and does not block your role.
+Report unexecuted checks honestly.
 A successful milestone is offline evidence. It does not establish a working
 presence adapter, live Kakao authentication, or actual three-Mac stability.
 """
 DISABLED = (
-    "apps", "plugins", "hooks", "shell_tool", "unified_exec", "code_mode_host",
+    "apps", "plugins", "hooks",
     "computer_use", "browser_use", "browser_use_external", "in_app_browser",
     "image_generation", "multi_agent", "multi_agent_v2", "skill_search", "sleep_tool",
     "workspace_dependencies", "goals", "memories", "daemon_auto_start",
@@ -339,6 +342,7 @@ class Supervisor:
                 "paths may change. For a blocker use an empty patch and explain the evidence."
             ),
             "review": (
+                "Read the supplied source and evidence or inspect the worktree read-only. "
                 "Independently review the actual code and test evidence. Complete only if "
                 "the whole offline milestone passes. Use fix for a repairable failure. "
                 "Confirm blocked only for an established external prerequisite."
@@ -375,7 +379,10 @@ class Supervisor:
             (directory / "input.txt").write_text(self.prompt(stage))
             argv = [
                 self.codex, "exec", "--ignore-user-config", "--ephemeral",
-                "--sandbox", "read-only", "--cd", str(self.root), "--model", model,
+                "--cd", str(self.root), "--model", model,
+                "-c", 'default_permissions="kakao-offline"',
+                "-c", 'permissions.kakao-offline.filesystem={":minimal"="read",":workspace_roots"="read"}',
+                "-c", "permissions.kakao-offline.network.enabled=false",
                 "--json", "--output-schema", str(schema), "-o", str(directory / "result.json"),
                 "-c", 'approval_policy="never"', "-c", 'model_provider="openai"',
                 "-c", 'web_search="disabled"', "-c", "mcp_servers={}",
