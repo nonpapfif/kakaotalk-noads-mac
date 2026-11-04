@@ -120,6 +120,36 @@ These are static source findings. No new application or multi-Mac test was run f
 goal interview. Preventing interference by these three clients is a target; protection
 against every server-side revocation or unmanaged client has not been established.
 
+## Coordination feasibility findings
+
+Read-only investigation on 2026-11-04 found these options. None has been selected or
+provisioned, and an ownership mechanism alone does not prove native KakaoTalk login or
+session protection.
+
+- A small external coordination service could provide one approval point for ownership
+  and concurrent requests. Cloudflare Durable Objects are one documented implementation
+  option with a globally addressable instance and transactional, strongly consistent state;
+  this is an example, not a provider choice.
+  [Official documentation](https://developers.cloudflare.com/durable-objects/concepts/what-are-durable-objects/)
+- A reachable home host plus a private network is another option. Network reachability
+  does not itself arbitrate ownership, and availability depends on reaching that host.
+  [Tailscale connectivity documentation](https://tailscale.com/docs/reference/device-connectivity)
+- Apple key-value synchronization does not promise immediate delivery to other devices;
+  it is not itself an authoritative first-accepted-request mechanism.
+  [Apple synchronize documentation](https://developer.apple.com/documentation/foundation/nsubiquitouskeyvaluestore/synchronize())
+- CloudKit is a separate possibility with signing, entitlement, and account prerequisites.
+  Apple requires an active Developer Program membership with admin permissions for its
+  documented setup. No qualifying setup or shared Apple account across these Macs has
+  been established for this project.
+  [Apple CloudKit setup](https://developer.apple.com/documentation/cloudkit/enabling-cloudkit-in-your-app)
+
+Inference from the agreed arbitration requirement: when no shared approval path or valid
+coordination authority is reachable, independently approving new ownership on isolated
+Macs cannot also guarantee a single globally first-accepted manual request. Retaining an
+existing native connection and deferring new transfers is a candidate failure policy;
+it has not yet been accepted. Unknown home-peer presence is a different case and retains
+the already accepted Away MacBook exception.
+
 ## Decision tree and open questions
 
 Settled: user/scope -> Open/Eligible definitions -> owner protection -> automatic handoff ->
@@ -130,18 +160,19 @@ Automatic Login is required; coverage of fully expired authentication remains un
 Also settled: Away Reservation across temporary lock, explicit manual selection above
 Away MacBook preference, and Away MacBook acquisition despite unknown home-peer presence.
 
-Engineering fact finding for the next round:
+The next product decisions are:
 
-1. Establish realistic cross-network coordination options and their deployment, signing,
-   and availability prerequisites before asking the user to select infrastructure scope.
-2. Determine the native saved-authentication cases that can recover without user action.
-3. Separate peer presence observations from ownership arbitration, including the evidence
-   required to preserve explicit selections and reject stale or concurrent requests.
+1. Whether operating a small external ownership/presence service is in scope. Provider,
+   cost, account setup, deployment, and device authentication still require concrete design.
+2. Whether to preserve existing connections but defer new transfers when the ownership
+   approval service itself cannot be reached, including explicit manual requests.
 
 Further decisions remain before implementation:
 
-- Acceptable coordination infrastructure after network scope is settled, and handling an
-  unavailable coordinator during an explicit Manual Reconnect or request arbitration.
+- Native saved-authentication cases that can recover without user action, established by
+  source/binary investigation and controlled tests rather than user guesses.
+- Concrete coordination design that preserves explicit selections and rejects stale or
+  concurrent requests, without conflating presence observations with ownership approval.
 - Reliable home/external classification, return-home behavior, and uncertain location.
 - Actual display/lock behavior with external displays and remote sessions on these Macs.
 - Display/lock transition delay tolerance and stale observation handling. Unresolvable
