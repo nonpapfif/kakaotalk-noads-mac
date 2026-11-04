@@ -15,6 +15,7 @@ class HoldTransportTests(unittest.TestCase):
                 ['xcrun', 'clang', '-fobjc-arc', '-Wall', '-Wextra', '-Werror',
                  '-framework', 'Cocoa', str(ROOT / 'tests/hold_transport_runtime.m'),
                  str(ROOT / 'reconnect/AppUpdater.m'),
+                 str(ROOT / 'reconnect/SessionReconnectViews.m'),
                  str(ROOT / 'reconnect/SessionNetworkGate.m'), '-o', str(binary)],
                 check=True, capture_output=True,
             )

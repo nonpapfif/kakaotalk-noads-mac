@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from pathlib import Path
 import plistlib
@@ -11,15 +10,8 @@ import shutil
 import subprocess
 import tempfile
 
-from compatibility import BUNDLE_ID, load_profile
-
-
-def digest(path: Path) -> str:
-    value = hashlib.sha256()
-    with path.open('rb') as handle:
-        for chunk in iter(lambda: handle.read(1_048_576), b''):
-            value.update(chunk)
-    return value.hexdigest()
+from compatibility import BUNDLE_ID, digest, load_profile
+from tools.build_support import build_universal_swift
 
 
 def build(app: Path, output: Path) -> None:
@@ -64,16 +56,7 @@ def build(app: Path, output: Path) -> None:
         shutil.copy(icon_path, resources / 'Installer.icns')
         installer_info['CFBundleIconFile'] = 'Installer.icns'
     (contents / 'Info.plist').write_bytes(plistlib.dumps(installer_info))
-    with tempfile.TemporaryDirectory(prefix='kakao-installer-build-') as temporary:
-        thin = []
-        for architecture in ('arm64', 'x86_64'):
-            binary = Path(temporary) / architecture
-            subprocess.run(['xcrun', 'swiftc', '-O', '-module-cache-path',
-                            str(Path(temporary) / 'modules'), '-target',
-                            architecture + '-apple-macosx13.0', str(root / 'installer/Installer.swift'),
-                            '-o', str(binary)], check=True)
-            thin.append(str(binary))
-        subprocess.run(['lipo', '-create', *thin, '-output', str(contents / 'MacOS/Installer')], check=True)
+    build_universal_swift([root / 'installer/Installer.swift'], contents / 'MacOS/Installer')
     subprocess.run(['codesign', '--force', '--sign', '-', '--options', 'runtime', str(installer)], check=True)
     subprocess.run(['codesign', '--verify', '--deep', '--strict', str(installer)], check=True)
     zip_path = output / f'KakaoTalk-NoAds-Reconnect-Installer-{version}.zip'
