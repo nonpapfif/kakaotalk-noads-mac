@@ -59,20 +59,10 @@ class SupervisorRepairTests(unittest.TestCase):
             "next_test": "A manual request with unknown approval leaves the owner unchanged.",
         })
         self.supervisor.advance(review, {"returncode": 0})
-        self.assertEqual(self.supervisor.state["phase"], "plan")
-        self.assertIn("Preserve the existing owner", self.supervisor.prompt("plan"))
-        self.assertIn("manual request with unknown approval", self.supervisor.prompt("plan"))
-
-        plan = self.job("003-plan", {
-            "decision": "implement",
-            "objective": "Keep the owner and defer the request.",
-            "test": "Check a manual request with unknown approval.",
-            "evidence": "Astra requires a concrete failed-approval case.",
-        })
-        self.supervisor.advance(plan, {"returncode": 0})
         self.assertEqual(self.supervisor.state["phase"], "implement")
         prompt = self.supervisor.prompt("implement")
-        self.assertIn("Check a manual request with unknown approval.", prompt)
+        self.assertIn("Preserve the existing owner", prompt)
+        self.assertIn("manual request with unknown approval", prompt)
         self.assertIn("leaves the owner unchanged", prompt)
 
     def test_old_passing_test_cannot_complete_a_new_source_review(self):

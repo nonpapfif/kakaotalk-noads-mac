@@ -359,6 +359,7 @@ class Supervisor:
         review = self.state.get("review")
         if review:
             context.append(f"Previous independent review\n{review['summary']}")
+            context.append(f"Review evidence\n{review['evidence']}")
             if review["decision"] == "fix":
                 context.append(
                     f"Astra required change\n{review['next_change']}\n"
@@ -373,7 +374,9 @@ class Supervisor:
             ),
             "implement": (
                 "Return a git-apply-compatible unified diff in patch. Only the three allowed "
-                "paths may change. For a blocker use an empty patch and explain the evidence."
+                "paths may change. Put the requested regression test in the unittest suite "
+                "so the Python runner can execute it. For a blocker use an empty patch and "
+                "explain the evidence."
             ),
             "review": (
                 "Read the supplied source and evidence or inspect the worktree read-only. "
@@ -518,15 +521,11 @@ class Supervisor:
                     raise RuntimeError("Policy and universal fixture checks must pass")
                 self.save(phase="complete", pending=None, review=answer, verified_digest=digest)
             elif decision == "fix":
-                tried_implementation = f"implement:{digest}" in self.state["attempts"]
-                if self.state.get("block_proposal") and not tried_implementation:
-                    plan = {"objective": answer["next_change"], "test": answer["next_test"]}
-                    self.save(
-                        phase="implement", pending=None, review=answer, plan=plan,
-                        block_proposal=None,
-                    )
-                else:
-                    self.save(phase="plan", pending=None, review=answer, block_proposal=None)
+                plan = {"objective": answer["next_change"], "test": answer["next_test"]}
+                self.save(
+                    phase="implement", pending=None, review=answer, plan=plan,
+                    block_proposal=None,
+                )
             else:
                 self.save(phase="blocked", pending=None, review=answer, reason=answer["summary"])
         else:

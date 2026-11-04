@@ -9,7 +9,7 @@ and authorization that a future adapter would supply.
 Python runs commands, persists each child exit, and waits for results. Luna low selects
 the next necessary test, Sol medium proposes a diff, and Astra medium reviews the
 recorded source and evidence. For a repair, Astra records the required change and the
-observable test separately. Luna and Sol receive both instructions, and Python reruns
+observable test separately. Sol receives both instructions directly, and Python reruns
 the suite on the changed source before returning the results to Astra. This cycle ends
 at the accepted milestone or an established blocker. Model workers can read the scoped
 worktree. The controller checks the diff allowlist before applying it in a dedicated
