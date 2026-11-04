@@ -1,6 +1,7 @@
 # Three-Mac Session Goals
 
-Status: goal interview in progress. Updated: 2026-11-04.
+Status: first product-goal baseline agreed; implementation feasibility pending.
+Updated: 2026-11-04.
 This records agreed target behavior, not implemented or verified functionality.
 Terminology is defined in [GLOSSARY.md](../GLOSSARY.md).
 
@@ -50,14 +51,16 @@ be immediately undone by automatic Away MacBook acquisition or stale automatic r
 | App crashes or contact is abruptly lost | Do not infer normal ownership release from the missing contact. Apply Unknown Presence handling. |
 | Multiple Eligible Macs start with no established owner | Choose the Mac with the most recent keyboard or mouse use. If ordering cannot be established, wait for Manual Reconnect. |
 | Manual Reconnect is requested during Unknown Presence | Allow the explicit request; automatic takeover remains deferred. |
-| Multiple Manual Reconnect requests arrive concurrently | Process only the first accepted request; report a conflict to the other requesters. |
+| Multiple Manual Reconnect requests arrive concurrently | Do not promise a globally first-accepted winner. Retain owner protection and prevent automatic takeover fights; concrete handling needs validation. |
 | No valid shared ownership approval path is reachable | Preserve the existing connection and defer new automatic and manual transfers. |
 
 Manual Reconnect is the previously agreed, intentional exception to protection of an Open
 owner, including during Unknown Presence. Concurrent requests do not authorize competing
-reconnect attempts. The meaning and feasibility of a shared request order still need design
-evidence; no coordinator is selected by this policy. Keeping an owner distinct from a working
-connection is essential to the priority rule; see
+automatic retry loops. Strict global first-accepted ordering was explicitly removed from
+scope; no shared arbitration service is selected or required solely to provide that order.
+Other owner-protection and transfer-approval rules remain. See
+[ADR 0004](adr/0004-drop-strict-global-request-ordering.md).
+Keeping an owner distinct from a working connection is essential to the priority rule; see
 [ADR 0001](adr/0001-protect-the-open-session-owner.md).
 The Away MacBook is an accepted exception to home-owner protection; see
 [ADR 0002](adr/0002-prioritize-the-away-macbook.md). Away Reservation preserves preference,
@@ -119,7 +122,8 @@ documentation branch or asserted to satisfy these goals.
   missing, as are cross-network ownership and home/Away MacBook priority.
 - Current disconnect handling can enter Hold and suppress automatic authentication. This
   conflicts with Owner Recovery after a temporary Internet outage.
-- Hold is not retained across app restart. Startup ownership selection is unresolved.
+- Hold is not retained across app restart. The agreed startup ownership policy is not
+  implemented.
 - The candidate's process-wide Internet gate also needs review before any coordination
   channel is placed in that process. Its tests are not proof of zero egress or server control.
 
@@ -129,48 +133,21 @@ These are static source findings. No new application or multi-Mac test was run f
 goal interview. Preventing interference by these three clients is a target; protection
 against every server-side revocation or unmanaged client has not been established.
 
-## Coordination feasibility findings
+## Coordination feasibility status
 
-Read-only investigation on 2026-11-04 found these options. None has been selected or
-provisioned, and an ownership mechanism alone does not prove native KakaoTalk login or
-session protection.
+The [zero-cost coordination research](ZERO-COST-COORDINATION.md) records the evidence and
+limitations of local discovery, native login events, and existing file synchronization.
+Strict global first-accepted ordering is no longer required. Its removal does not prove
+that those mechanisms enforce the remaining owner-protection and priority rules.
 
-- A small external coordination service could provide one approval point for ownership
-  and concurrent requests. Cloudflare Durable Objects are one documented implementation
-  option with a globally addressable instance and transactional, strongly consistent state;
-  this is an example, not a provider choice.
-  [Official documentation](https://developers.cloudflare.com/durable-objects/concepts/what-are-durable-objects/)
-- A reachable home host plus a private network is another option. Network reachability
-  does not itself arbitrate ownership, and availability depends on reaching that host.
-  [Tailscale connectivity documentation](https://tailscale.com/docs/reference/device-connectivity)
-- Apple key-value synchronization does not promise immediate delivery to other devices;
-  it is not itself an authoritative first-accepted-request mechanism.
-  [Apple synchronize documentation](https://developer.apple.com/documentation/foundation/nsubiquitouskeyvaluestore/synchronize())
-- CloudKit is a separate possibility with signing, entitlement, and account prerequisites.
-  Apple requires an active Developer Program membership with admin permissions for its
-  documented setup. No qualifying setup or shared Apple account across these Macs has
-  been established for this project.
-  [Apple CloudKit setup](https://developer.apple.com/documentation/cloudkit/enabling-cloudkit-in-your-app)
+An existing Mac as sole authority with existing synchronization as transport was examined
+as a candidate, not selected. A separate external service remains outside the default scope.
+No coordination role, host dependency, account setup, or transport is adopted by these goals.
 
-Inference from the agreed arbitration requirement: when no shared approval path or valid
-coordination authority is reachable, independently approving new ownership on isolated
-Macs cannot also guarantee a single globally first-accepted manual request. Retaining an
-existing native connection and deferring new automatic/manual transfers is now the
-accepted failure policy. Unknown home-peer presence is a different case and retains the
-already accepted Away MacBook exception.
-
-The externally operated service options above are research context, not the preferred
-architecture under the user's later zero-spending and small-scope constraints. Investigate
-existing app/network/synchronization capabilities before reconsidering service scope.
-See the bounded [zero-cost coordination research](ZERO-COST-COORDINATION.md) for the
-examined evidence and outstanding guarantees. An existing Mac as sole authority with
-existing synchronization as message transport is an unselected candidate, not a free or
-ten-second implementation guarantee.
-
-Continuing a working native connection must also be distinguished from making a fresh
-saved-auth login request. It is not yet proven that a previously selected owner's fresh
-login cannot replace a newer owner after a communications partition. This is a feasibility
-question for the accepted protection/recovery rules, not permission to use stale ownership.
+Continuing a working native connection differs from making a fresh saved-auth login request.
+It is not yet proven that a previously selected owner's fresh login cannot replace a newer
+owner after a communications partition. Preserve the accepted unavailable-approval policy
+while investigating recovery; do not assume cached ownership authorizes a stale takeover.
 
 ## Decision tree and open questions
 
@@ -184,33 +161,32 @@ Away MacBook preference, and Away MacBook acquisition despite unknown home-peer 
 Budget is zero, separate external service operation is outside the default scope, and
 unavailable shared ownership approval defers new automatic/manual transfers.
 
-The next product decision is scope under the zero-cost constraint:
+Scope decision accepted:
 
-The globally first-accepted manual-request guarantee was proposed during the interview;
-it is additional to the user's primary purpose of avoiding repeated login while rotating
-among three Macs. Preserving it requires demonstrating shared arbitration, which the
-examined local/native mechanisms do not provide on current evidence. Decide whether to
-retain that strict guarantee with added coordination, or explicitly relax that guarantee
-before pursuing a smaller design. No reduction has been accepted or implemented.
+The user removed strict globally first-accepted manual-request ordering from this phase.
+It had been proposed during the interview in addition to the primary purpose of avoiding
+repeated login while rotating among three Macs. Prioritize a small, zero-spending design
+and investigate existing capabilities before adding a coordination role or service.
 
-Any relaxation is limited to global first-accepted ordering; it does not silently remove
+The relaxation is limited to global first-accepted ordering; it does not remove
 owner protection, manual/away precedence, automatic-login goals, or the accepted policy
 of preserving existing connections and deferring transfers without valid approval.
 
-Engineering work after that scope decision:
+Engineering work after the goal reset:
 
 1. Identify what can be achieved with existing KakaoTalk authentication/session events,
    local coordination, or existing synchronization without a new external service.
-2. Establish which cross-network ordering and ownership guarantees those paths actually
-   support. Any proposed reduction in an accepted guarantee must return to the user as a
-   product decision rather than being silently treated as an implementation detail.
+2. Validate the remaining cross-network ownership/protection rules without requiring the
+   removed first-accepted ordering guarantee. Any further reduction in an accepted rule
+   returns to the user as a product decision.
 
-Further decisions remain before implementation:
+Engineering checks and unresolved design details:
 
 - Native saved-authentication cases that can recover without user action, established by
   source/binary investigation and controlled tests rather than user guesses.
-- Concrete coordination design that preserves explicit selections and rejects stale or
-  concurrent requests, without conflating presence observations with ownership approval.
+- A minimal design that preserves explicit selections, prevents stale automatic takeovers,
+  and handles concurrent requests without promising a global first-accepted order or
+  conflating presence observations with ownership approval.
 - Reliable home/external classification, return-home behavior, and uncertain location.
 - Actual display/lock behavior with external displays and remote sessions on these Macs.
 - Display/lock transition delay tolerance and stale observation handling. Unresolvable

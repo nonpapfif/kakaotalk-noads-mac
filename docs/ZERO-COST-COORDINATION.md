@@ -2,6 +2,12 @@
 
 Status: feasibility research, not an architecture decision. Reviewed: 2026-11-04.
 
+Scope update: after this investigation, the user removed strict globally first-accepted
+request ordering from the current phase. Findings about that ordering explain the earlier
+scope trade-off, not a current requirement to build a shared arbiter. Remaining owner
+protection, manual/away priority, automatic-login goals, and approval-unavailability policy
+remain in force. See [ADR 0004](adr/0004-drop-strict-global-request-ordering.md).
+
 ## Conclusion
 
 LAN discovery plus native KakaoTalk login/kickout does not currently demonstrate the
@@ -11,7 +17,7 @@ manual requests. A protocol using an existing Mac as the sole approval authority
 a possible research candidate, not an implemented or proven solution.
 
 This is a gap in the examined mechanisms, not proof that every zero-cost design is
-impossible. Keep the first-accepted, one-winner manual rule. If no valid shared approval
+impossible. The user has since removed strict first-accepted ordering. If no valid shared approval
 path is reachable, preserve the existing connection and defer new automatic and manual
 transfers, as agreed. Unknown home-peer presence alone does not block Away acquisition
 when that approval path remains available.
@@ -71,7 +77,8 @@ permission failure, or departure. Treat it as missing observation, not release.
 **Native login outside.** A successful forced login may establish a working connection.
 It cannot substitute for prior ownership approval on current evidence. Even if the
 server eventually retains one connection, competing login attempts could successively
-replace each other. Final connection state is not the agreed first-accepted winner.
+replace each other. Final connection state does not prove the formerly requested
+first-accepted ordering, nor the remaining persistent priority/protection requirements.
 
 **One synchronized owner file.** Independent Macs can read old copies and each write a
 different winner. Resolving the file conflict later cannot undo an already executed
@@ -104,9 +111,10 @@ During unavailable approval, keep the agreed defer policy.
 1. **Ten-second cross-network transfer:** no cited iCloud specification supplies this
    bound. If this transport is selected, retain ten seconds as an unverified acceptance
    target or revisit it explicitly; do not silently promise it.
-2. **First-accepted manual winner:** needs one demonstrated acceptance point and conflict
-   boundary, with stale requests/responses and restarts covered. Not proved by LAN,
-   iCloud synchronization, or kickout handling separately or together.
+2. **First-accepted manual winner (removed from scope):** it would need one demonstrated
+   acceptance point and conflict boundary, with stale requests/responses and restarts
+   covered. It was not proved by LAN, synchronization, or kickout handling; it is no longer
+   an acceptance requirement for the current phase.
 3. **Persistent manual override and Away Reservation:** need authoritative durable state,
    explicit release rules, and clients that cannot act on obsolete ownership. Neither
    a live connection nor a generic disconnect identifies these intentions.
